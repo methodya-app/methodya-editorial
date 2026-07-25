@@ -96,6 +96,8 @@ export default withCors(async (req, res) => {
       instance_id: instanceId,
       subform_id: match.subform_id,
       subform_nombre: subformDoc?.nombre || match.field.label,
+      subform_codigo: match.instance.codigo || '',
+      titulo: match.instance.values?.titulo || '',
       multimedia_role_id: role.id,
       assigned_user_id: null,
       estado: 'Asignado',

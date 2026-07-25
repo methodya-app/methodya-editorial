@@ -73,13 +73,53 @@ export default withCors(async (req, res) => {
     // A toda instancia de subformulario sin "id" (datos guardados antes de
     // que el equipo multimedia existiera) se le asigna uno estable, para
     // poder liberarla al equipo multimedia como tarea independiente.
-    for (const field of allFields) {
-      if (field.type !== 'subform') continue;
+    const subformFields = allFields.filter((f) => f.type === 'subform');
+    for (const field of subformFields) {
       const fieldValue = values[field.variable];
       if (fieldValue && Array.isArray(fieldValue.instances)) {
         fieldValue.instances = fieldValue.instances.map((inst) =>
           inst.id ? inst : { ...inst, id: randomUUID() }
         );
+      }
+    }
+
+    // Código automático de cada instancia: {código del documento}-{prefijo
+    // del subformulario}-{consecutivo del tipo dentro del documento}, ej:
+    // G1-001-VID-1, G1-001-VID-2. El consecutivo se cuenta por subform_id en
+    // todo el documento (el mismo tipo puede repetirse en varios campos).
+    const subformIdsUsed = [
+      ...new Set(subformFields.map((f) => values[f.variable]?.subform_id).filter(Boolean)),
+    ];
+    if (subformIdsUsed.length > 0) {
+      const subformDocs = await db
+        .collection('subforms')
+        .find({ _id: { $in: subformIdsUsed.map(toObjectId) } })
+        .toArray();
+      const prefijoById = new Map(subformDocs.map((sf) => [sf._id.toString(), sf.prefijo]));
+
+      const maxConsecutivoById = new Map();
+      for (const field of subformFields) {
+        const fieldValue = values[field.variable];
+        for (const inst of fieldValue?.instances || []) {
+          const match = inst.codigo && inst.codigo.match(/-(\d+)$/);
+          if (!match) continue;
+          const n = parseInt(match[1], 10);
+          const key = fieldValue.subform_id;
+          if (n > (maxConsecutivoById.get(key) || 0)) maxConsecutivoById.set(key, n);
+        }
+      }
+
+      for (const field of subformFields) {
+        const fieldValue = values[field.variable];
+        if (!fieldValue || !Array.isArray(fieldValue.instances)) continue;
+        const prefijo = prefijoById.get(fieldValue.subform_id);
+        if (!prefijo) continue; // subformulario sin prefijo configurado aún
+        fieldValue.instances = fieldValue.instances.map((inst) => {
+          if (inst.codigo) return inst;
+          const next = (maxConsecutivoById.get(fieldValue.subform_id) || 0) + 1;
+          maxConsecutivoById.set(fieldValue.subform_id, next);
+          return { ...inst, codigo: `${access.document.codigo}-${prefijo}-${next}` };
+        });
       }
     }
 

@@ -157,7 +157,10 @@ export default function MultimediaSubformDetail() {
           <h2 className="font-display font-bold text-xl text-deepViolet">{assignment.subform_nombre}</h2>
           <StateBadge estado={assignment.estado} />
         </div>
-        <p className="text-sm text-slate-500 font-mono">{assignment.document_codigo}</p>
+        <p className="text-sm text-slate-500 font-mono">
+          {assignment.subform_codigo || assignment.document_codigo}
+          {assignment.subform_codigo && ` · ${assignment.titulo || ''}`}
+        </p>
         <button
           onClick={() => setPreviewOpen(true)}
           className="mt-2 text-xs font-semibold text-cognitiveTeal hover:underline"
