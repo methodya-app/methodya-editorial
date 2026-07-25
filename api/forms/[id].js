@@ -18,11 +18,12 @@ export default withCors(async (req, res) => {
 
   if (req.method === 'PUT') {
     requireAdmin(auth);
-    const { titulo, descripcion, document_type_id, sections } = req.body || {};
+    const { titulo, descripcion, document_type_id, sections, eliminado } = req.body || {};
     const updates = { updated_at: new Date() };
     if (titulo !== undefined) updates.titulo = titulo;
     if (descripcion !== undefined) updates.descripcion = descripcion;
     if (document_type_id !== undefined) updates.document_type_id = document_type_id;
+    if (eliminado !== undefined) updates.eliminado = eliminado;
     if (sections !== undefined) {
       const allFields = sections.flatMap((s) => s.fields || []);
       const missing = findFieldsMissingCustomMessage(allFields);
@@ -46,7 +47,9 @@ export default withCors(async (req, res) => {
 
   if (req.method === 'DELETE') {
     requireAdmin(auth);
-    await db.collection('forms').deleteOne({ _id: oid });
+    // Eliminación lógica: se envía a la papelera, no se borra físicamente
+    // (los documentos ya creados con este formulario siguen funcionando).
+    await db.collection('forms').updateOne({ _id: oid }, { $set: { eliminado: true, updated_at: new Date() } });
     return res.status(200).json({ ok: true });
   }
 
