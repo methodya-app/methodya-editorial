@@ -7,7 +7,7 @@ const navLinkClass = ({ isActive }) =>
   }`;
 
 export default function Layout() {
-  const { profile, isAdmin, logout } = useAuth();
+  const { profile, isAdmin, isMultimediaCoordinator, multimediaProjectRoles, logout } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -40,9 +40,18 @@ export default function Layout() {
               <NavLink to="/admin/subformularios" className={navLinkClass}>Subformularios</NavLink>
               <NavLink to="/admin/parrafos" className={navLinkClass}>Párrafos</NavLink>
               <NavLink to="/admin/parametros" className={navLinkClass}>Parámetros</NavLink>
+              <NavLink to="/multimedia-roles" className={navLinkClass}>Roles multimedia</NavLink>
             </>
           ) : (
-            <NavLink to="/mis-proyectos" className={navLinkClass}>Mis proyectos</NavLink>
+            <>
+              <NavLink to="/mis-proyectos" className={navLinkClass}>Mis proyectos</NavLink>
+              {multimediaProjectRoles.length > 0 && (
+                <NavLink to="/multimedia" className={navLinkClass}>Multimedia</NavLink>
+              )}
+              {isMultimediaCoordinator && (
+                <NavLink to="/multimedia-roles" className={navLinkClass}>Roles multimedia</NavLink>
+              )}
+            </>
           )}
         </nav>
 

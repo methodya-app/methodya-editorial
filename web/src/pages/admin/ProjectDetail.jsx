@@ -9,6 +9,8 @@ import ProjectValidationsTab from './project/ProjectValidationsTab.jsx';
 import ProjectMassChangesTab from './project/ProjectMassChangesTab.jsx';
 import ProjectTemplateTab from './project/ProjectTemplateTab.jsx';
 import ProjectAssignmentTab from './project/ProjectAssignmentTab.jsx';
+import ProjectMultimediaTeamTab from './project/ProjectMultimediaTeamTab.jsx';
+import ProjectMultimediaAssignmentTab from './project/ProjectMultimediaAssignmentTab.jsx';
 
 const TABS = [
   { key: 'formularios', label: 'Formularios' },
@@ -18,6 +20,8 @@ const TABS = [
   { key: 'cambios-masivos', label: 'Cambios masivos' },
   { key: 'plantilla', label: 'Plantilla y vaciamiento' },
   { key: 'asignacion', label: 'Reglas de asignación' },
+  { key: 'equipo-multimedia', label: 'Equipo multimedia' },
+  { key: 'asignacion-multimedia', label: 'Asignación multimedia' },
 ];
 
 export default function ProjectDetail() {
@@ -75,6 +79,8 @@ export default function ProjectDetail() {
       {tab === 'cambios-masivos' && <ProjectMassChangesTab projectId={id} readOnly={readOnly} />}
       {tab === 'plantilla' && <ProjectTemplateTab project={project} onSaved={load} readOnly={readOnly} />}
       {tab === 'asignacion' && <ProjectAssignmentTab project={project} onSaved={load} readOnly={readOnly} />}
+      {tab === 'equipo-multimedia' && <ProjectMultimediaTeamTab projectId={id} readOnly={readOnly} />}
+      {tab === 'asignacion-multimedia' && <ProjectMultimediaAssignmentTab projectId={id} readOnly={readOnly} />}
     </div>
   );
 }

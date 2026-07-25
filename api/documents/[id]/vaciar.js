@@ -4,7 +4,15 @@ import { supabaseAdmin } from '../../_lib/supabaseAdmin.js';
 import { getDb } from '../../_lib/mongo.js';
 import { loadDocumentWithAccess } from '../../_lib/documentAccess.js';
 import { getGoogleOAuthConfig } from '../../_lib/googleAuth.js';
-import { extractDriveId, findOrCreateSubfolder, copyFile, getFile, trashFile } from '../../_lib/googleDrive.js';
+import {
+  extractDriveId,
+  findOrCreateSubfolder,
+  copyFile,
+  getFile,
+  trashFile,
+  exportAsPdf,
+  uploadPdf,
+} from '../../_lib/googleDrive.js';
 import { replaceVariablesInDoc, replaceVariablesInSlides } from '../../_lib/googleDocsSlides.js';
 
 // El vaciamiento real hace varias llamadas a Google (copiar, reemplazar) y
@@ -73,27 +81,35 @@ export default withCors(async (req, res) => {
     const admin = supabaseAdmin();
 
     if (canDoReal) {
-      const file = await vaciarReal({
+      const { googleFile, pdfFile } = await vaciarReal({
         document: access.document,
         project,
         values,
         templateFileId,
         folderId,
         previousFileId: existing?.vaciado_drive_file_id || null,
+        previousPdfFileId: existing?.vaciado_pdf_file_id || null,
+        formato: project.vaciado_formato || 'google',
       });
 
       await db.collection('document_data').updateOne(
         { document_id: id },
         {
           $set: {
-            vaciado_resultado: file.webViewLink || file.id,
-            vaciado_drive_file_id: file.id,
+            vaciado_resultado: googleFile ? googleFile.webViewLink || googleFile.id : null,
+            vaciado_drive_file_id: googleFile ? googleFile.id : null,
+            vaciado_pdf_resultado: pdfFile ? pdfFile.webViewLink || pdfFile.id : null,
+            vaciado_pdf_file_id: pdfFile ? pdfFile.id : null,
             vaciado_at: new Date(),
           },
         }
       );
       await admin.from('documents').update({ vaciado_at: new Date().toISOString() }).eq('id', id);
-      return res.status(200).json({ vaciado_resultado: file.webViewLink, real: true });
+      return res.status(200).json({
+        vaciado_resultado: googleFile?.webViewLink || null,
+        vaciado_pdf_resultado: pdfFile?.webViewLink || null,
+        real: true,
+      });
     }
 
     // --- Simulación (sin cuenta de Google o sin plantilla/carpeta de Drive) ---
@@ -132,7 +148,16 @@ export default withCors(async (req, res) => {
 // borra permanentemente, se puede recuperar). Así nunca hay un momento en
 // que no exista ningún archivo válido, y no se depende de reimportar
 // contenido dentro del archivo anterior (el paso que resultaba frágil).
-async function vaciarReal({ document, project, values, templateFileId, folderId, previousFileId }) {
+async function vaciarReal({
+  document,
+  project,
+  values,
+  templateFileId,
+  folderId,
+  previousFileId,
+  previousPdfFileId,
+  formato,
+}) {
   const subfolderId = await findOrCreateSubfolder(folderId, document.codigo);
   const freshCopy = await copyFile(templateFileId, document.codigo, subfolderId);
 
@@ -142,15 +167,38 @@ async function vaciarReal({ document, project, values, templateFileId, folderId,
     await replaceVariablesInDoc(freshCopy.id, values);
   }
 
-  if (previousFileId) {
+  // Trata de enviar a la papelera el/los archivo(s) del vaciamiento
+  // anterior; si ya no existe o no es accesible (p. ej. lo borraron
+  // manualmente en Drive), no bloquea el vaciamiento nuevo.
+  const trashIfExists = async (fileId) => {
+    if (!fileId) return;
     try {
-      await trashFile(previousFileId);
+      await trashFile(fileId);
     } catch {
-      // El archivo de un vaciamiento anterior ya no existe o no es
-      // accesible (p. ej. lo borraron manualmente en Drive): no hay nada
-      // que enviar a la papelera, se sigue igual con la copia nueva.
+      // ignorar
     }
+  };
+
+  let googleFile = null;
+  let pdfFile = null;
+
+  if (formato === 'google' || formato === 'ambos') {
+    await trashIfExists(previousFileId);
+    googleFile = await getFile(freshCopy.id);
   }
 
-  return getFile(freshCopy.id);
+  if (formato === 'pdf' || formato === 'ambos') {
+    const pdfBuffer = await exportAsPdf(freshCopy.id);
+    await trashIfExists(previousPdfFileId);
+    pdfFile = await uploadPdf(`${document.codigo}.pdf`, pdfBuffer, subfolderId);
+  }
+
+  if (formato === 'pdf') {
+    // La copia en Google Docs/Slides fue solo un paso intermedio para
+    // generar el PDF; si el proyecto solo quiere PDF, no se deja como
+    // resultado final.
+    await trashIfExists(freshCopy.id);
+  }
+
+  return { googleFile, pdfFile };
 }

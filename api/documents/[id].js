@@ -15,6 +15,15 @@ export default withCors(async (req, res) => {
     const form = await db.collection('forms').findOne({ _id: toObjectId(access.document.form_id) });
     const data = await db.collection('document_data').findOne({ document_id: id });
 
+    // Estado de liberación al equipo multimedia de cada instancia de
+    // subformulario (para no ofrecer "Enviar a multimedia" dos veces).
+    const releases = await db
+      .collection('subform_assignments')
+      .find({ document_id: id, estado: { $ne: 'Eliminado' } })
+      .project({ instance_id: 1, estado: 1 })
+      .toArray();
+    const subformReleaseStatus = Object.fromEntries(releases.map((r) => [r.instance_id, r.estado]));
+
     return res.status(200).json({
       document: access.document,
       form,
@@ -22,6 +31,9 @@ export default withCors(async (req, res) => {
       comments: data?.comments || [],
       vaciado_resultado: data?.vaciado_resultado || null,
       vaciado_drive_file_id: data?.vaciado_drive_file_id || null,
+      vaciado_pdf_resultado: data?.vaciado_pdf_resultado || null,
+      vaciado_pdf_file_id: data?.vaciado_pdf_file_id || null,
+      subform_release_status: subformReleaseStatus,
       access: {
         role: access.projectRole,
         is_creador: access.isCreador,

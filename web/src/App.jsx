@@ -13,9 +13,13 @@ import DocumentTypes from './pages/admin/DocumentTypes.jsx';
 import SubformsLibrary from './pages/admin/SubformsLibrary.jsx';
 import ParagraphsLibrary from './pages/admin/ParagraphsLibrary.jsx';
 import ServerSettings from './pages/admin/ServerSettings.jsx';
+import MultimediaRoles from './pages/MultimediaRoles.jsx';
 import MyProjects from './pages/shared/MyProjects.jsx';
 import MyDocuments from './pages/shared/MyDocuments.jsx';
 import DocumentExecute from './pages/shared/DocumentExecute.jsx';
+import MultimediaProjects from './pages/shared/MultimediaProjects.jsx';
+import MultimediaProjectWork from './pages/shared/MultimediaProjectWork.jsx';
+import MultimediaSubformDetail from './pages/shared/MultimediaSubformDetail.jsx';
 
 function Home() {
   const { isAdmin } = useAuth();
@@ -39,10 +43,17 @@ export default function App() {
         <Route path="/admin/subformularios" element={<ProtectedRoute adminOnly><SubformsLibrary /></ProtectedRoute>} />
         <Route path="/admin/parrafos" element={<ProtectedRoute adminOnly><ParagraphsLibrary /></ProtectedRoute>} />
         <Route path="/admin/parametros" element={<ProtectedRoute adminOnly><ServerSettings /></ProtectedRoute>} />
+        <Route
+          path="/multimedia-roles"
+          element={<ProtectedRoute multimediaCoordinatorOnly><MultimediaRoles /></ProtectedRoute>}
+        />
 
         <Route path="/mis-proyectos" element={<MyProjects />} />
         <Route path="/mis-proyectos/:projectId" element={<MyDocuments />} />
         <Route path="/documentos/:id" element={<DocumentExecute />} />
+        <Route path="/multimedia" element={<MultimediaProjects />} />
+        <Route path="/multimedia/tarea/:id" element={<MultimediaSubformDetail />} />
+        <Route path="/multimedia/:projectId" element={<MultimediaProjectWork />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

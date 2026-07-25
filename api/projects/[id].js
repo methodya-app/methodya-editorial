@@ -31,6 +31,7 @@ export default withCors(async (req, res) => {
       'asignacion_revisor_pedagogico',
       'asignacion_revisor_estilo',
       'criterio_carga',
+      'vaciado_formato',
     ];
     const updates = {};
     for (const key of allowed) {
