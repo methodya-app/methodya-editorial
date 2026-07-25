@@ -1,4 +1,5 @@
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../lib/auth.jsx';
 
 const navLinkClass = ({ isActive }) =>
@@ -6,14 +7,68 @@ const navLinkClass = ({ isActive }) =>
     isActive ? 'bg-cognitiveTeal text-white' : 'text-empatheticLinen/80 hover:bg-white/10'
   }`;
 
+const dropdownLinkClass = ({ isActive }) =>
+  `block px-4 py-2 text-sm whitespace-nowrap ${
+    isActive ? 'bg-cognitiveTeal-light text-cognitiveTeal-deep font-semibold' : 'text-deepViolet hover:bg-deepViolet/5'
+  }`;
+
+// Pestaña de nivel superior con sub-pestañas (dropdown), para agrupar rutas
+// relacionadas (ej. "Usuarios y Roles", "Configuración") sin perder el
+// resaltado de "activo" cuando la ruta actual es una de sus hijas.
+function NavDropdown({ label, active, children }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    const onClickOutside = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', onClickOutside);
+    return () => document.removeEventListener('mousedown', onClickOutside);
+  }, []);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen((o) => !o)}
+        className={`px-3 py-2 rounded-lg text-sm font-medium transition flex items-center gap-1 ${
+          active ? 'bg-cognitiveTeal text-white' : 'text-empatheticLinen/80 hover:bg-white/10'
+        }`}
+      >
+        {label}
+        <span className="text-[10px]">▾</span>
+      </button>
+      {open && (
+        <div
+          onClick={() => setOpen(false)}
+          className="absolute left-0 mt-1 bg-white rounded-lg shadow-lg py-1 min-w-[180px] z-50"
+        >
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Layout() {
   const { profile, isAdmin, isMultimediaCoordinator, multimediaProjectRoles, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   const handleLogout = () => {
     logout();
     navigate('/login');
   };
+
+  const isUsuariosRolesActive = ['/admin/usuarios', '/multimedia-roles'].some((p) =>
+    location.pathname.startsWith(p)
+  );
+  const isConfiguracionActive = [
+    '/admin/tipos-documento',
+    '/admin/subformularios',
+    '/admin/parrafos',
+    '/admin/parametros',
+  ].some((p) => location.pathname.startsWith(p));
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -35,12 +90,16 @@ export default function Layout() {
             <>
               <NavLink to="/admin/proyectos" className={navLinkClass}>Proyectos</NavLink>
               <NavLink to="/admin/analitica" className={navLinkClass}>Analítica</NavLink>
-              <NavLink to="/admin/usuarios" className={navLinkClass}>Usuarios</NavLink>
-              <NavLink to="/admin/tipos-documento" className={navLinkClass}>Tipos de documento</NavLink>
-              <NavLink to="/admin/subformularios" className={navLinkClass}>Subformularios</NavLink>
-              <NavLink to="/admin/parrafos" className={navLinkClass}>Párrafos</NavLink>
-              <NavLink to="/admin/parametros" className={navLinkClass}>Parámetros</NavLink>
-              <NavLink to="/multimedia-roles" className={navLinkClass}>Roles multimedia</NavLink>
+              <NavDropdown label="Usuarios y Roles" active={isUsuariosRolesActive}>
+                <NavLink to="/admin/usuarios" className={dropdownLinkClass}>Usuarios</NavLink>
+                <NavLink to="/multimedia-roles" className={dropdownLinkClass}>Roles multimedia</NavLink>
+              </NavDropdown>
+              <NavDropdown label="Configuración" active={isConfiguracionActive}>
+                <NavLink to="/admin/tipos-documento" className={dropdownLinkClass}>Tipos de documento</NavLink>
+                <NavLink to="/admin/subformularios" className={dropdownLinkClass}>Subformularios</NavLink>
+                <NavLink to="/admin/parrafos" className={dropdownLinkClass}>Párrafos predefinidos</NavLink>
+                <NavLink to="/admin/parametros" className={dropdownLinkClass}>Parámetros</NavLink>
+              </NavDropdown>
             </>
           ) : (
             <>
