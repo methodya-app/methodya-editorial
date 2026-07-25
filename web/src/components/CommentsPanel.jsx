@@ -1,9 +1,14 @@
 import { useState } from 'react';
 import { api } from '../lib/api.js';
 
-// Panel de observaciones/comentarios sobre un campo del formulario, similar
-// a los comentarios de Word/Google Docs. Se usa dentro de FormRenderer.
-export default function CommentsPanel({ documentId, fieldId, comments, projectUsers, canComment, canResolve, onChange }) {
+// Panel de observaciones/comentarios, similar a los comentarios de
+// Word/Google Docs. Se usa dentro de FormRenderer (comentarios por campo de
+// un documento) y en las tareas del equipo multimedia (comentarios sobre
+// toda la tarea, sin campo específico). `apiBase` es la ruta base del
+// recurso (ej. `/documents/:id` o `/subform-assignments/:id`); si no se pasa
+// `fieldId`, no se filtra por campo (se muestran/crean todos los
+// comentarios del recurso).
+export default function CommentsPanel({ apiBase, fieldId, comments, projectUsers, canComment, canResolve, onChange }) {
   const [text, setText] = useState('');
   const [mentionId, setMentionId] = useState('');
   const [sending, setSending] = useState(false);
@@ -14,13 +19,13 @@ export default function CommentsPanel({ documentId, fieldId, comments, projectUs
   const [replyResolves, setReplyResolves] = useState(false);
   const [replySending, setReplySending] = useState(false);
 
-  const fieldComments = (comments || []).filter((c) => c.field_id === fieldId);
+  const fieldComments = fieldId ? (comments || []).filter((c) => c.field_id === fieldId) : comments || [];
 
   const send = async () => {
     if (!text.trim()) return;
     setSending(true);
     try {
-      await api.post(`/documents/${documentId}/comments`, {
+      await api.post(`${apiBase}/comments`, {
         field_id: fieldId,
         text,
         mentions: mentionId ? [mentionId] : [],
@@ -34,7 +39,7 @@ export default function CommentsPanel({ documentId, fieldId, comments, projectUs
   };
 
   const resolve = async (commentId, resolved) => {
-    await api.put(`/documents/${documentId}/comments`, { comment_id: commentId, resolved });
+    await api.put(`${apiBase}/comments`, { comment_id: commentId, resolved });
     onChange?.();
   };
 
@@ -61,7 +66,7 @@ export default function CommentsPanel({ documentId, fieldId, comments, projectUs
     if (!replyText.trim()) return;
     setReplySending(true);
     try {
-      await api.post(`/documents/${documentId}/comments`, {
+      await api.post(`${apiBase}/comments`, {
         reply_to: commentId,
         text: replyText,
         mentions: replyMentions,

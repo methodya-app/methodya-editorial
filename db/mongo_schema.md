@@ -123,7 +123,10 @@ de Supabase, enlazado por `document_id`).
       "created_at": ISODate
     }
   ],
-  "vaciado_resultado": "texto simulado con variables reemplazadas (o null)",
+  "vaciado_resultado": "texto simulado, o link de Google Docs/Slides si el proyecto exporta a Google (o null)",
+  "vaciado_drive_file_id": "id del archivo de Google Docs/Slides (o null)",
+  "vaciado_pdf_resultado": "link del PDF en Drive, si el proyecto exporta a PDF (o null)",
+  "vaciado_pdf_file_id": "id del archivo PDF en Drive (o null)",
   "updated_at": ISODate
 }
 ```

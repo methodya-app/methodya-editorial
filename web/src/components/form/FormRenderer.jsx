@@ -28,6 +28,9 @@ export default function FormRenderer({
   comments = [],
   projectUsers = [],
   onCommentsChange,
+  canReleaseToMultimedia = false,
+  subformReleaseStatus = {},
+  onReleaseInstance,
 }) {
   const setValue = (variable, val) => onChange({ ...values, [variable]: val });
 
@@ -63,6 +66,9 @@ export default function FormRenderer({
                 comments={comments}
                 projectUsers={projectUsers}
                 onCommentsChange={onCommentsChange}
+                canReleaseToMultimedia={canReleaseToMultimedia}
+                subformReleaseStatus={subformReleaseStatus}
+                onReleaseInstance={onReleaseInstance}
               />
             ))}
             {section.fields.length === 0 && (
@@ -90,6 +96,9 @@ function FieldRenderer({
   comments,
   projectUsers,
   onCommentsChange,
+  canReleaseToMultimedia,
+  subformReleaseStatus,
+  onReleaseInstance,
 }) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [spellIssues, setSpellIssues] = useState(null);
@@ -134,6 +143,9 @@ function FieldRenderer({
         readOnly={readOnly}
         subformsLibrary={subformsLibrary}
         openPicker={() => setPickerOpen(true)}
+        canReleaseToMultimedia={canReleaseToMultimedia}
+        subformReleaseStatus={subformReleaseStatus}
+        onReleaseInstance={onReleaseInstance}
       />
 
       {error?.length > 0 && (
@@ -189,7 +201,7 @@ function FieldRenderer({
 
       {documentId && (
         <CommentsPanel
-          documentId={documentId}
+          apiBase={`/documents/${documentId}`}
           fieldId={field.id}
           comments={comments}
           projectUsers={projectUsers}
@@ -212,7 +224,18 @@ function FieldRenderer({
   );
 }
 
-function FieldInput({ field, value, onChange, onBlur, readOnly, subformsLibrary, openPicker }) {
+export function FieldInput({
+  field,
+  value,
+  onChange,
+  onBlur,
+  readOnly,
+  subformsLibrary,
+  openPicker,
+  canReleaseToMultimedia,
+  subformReleaseStatus,
+  onReleaseInstance,
+}) {
   const base =
     'w-full border border-deepViolet/20 rounded-lg p-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-cognitiveTeal disabled:bg-slate-100 disabled:text-slate-500';
 
@@ -318,7 +341,16 @@ function FieldInput({ field, value, onChange, onBlur, readOnly, subformsLibrary,
 
     case 'subform':
       return (
-        <SubformField field={field} value={value} onChange={onChange} readOnly={readOnly} subformsLibrary={subformsLibrary} />
+        <SubformField
+          field={field}
+          value={value}
+          onChange={onChange}
+          readOnly={readOnly}
+          subformsLibrary={subformsLibrary}
+          canReleaseToMultimedia={canReleaseToMultimedia}
+          subformReleaseStatus={subformReleaseStatus}
+          onReleaseInstance={onReleaseInstance}
+        />
       );
 
     default:
@@ -337,7 +369,16 @@ function FieldInput({ field, value, onChange, onBlur, readOnly, subformsLibrary,
   }
 }
 
-function SubformField({ field, value, onChange, readOnly, subformsLibrary }) {
+function SubformField({
+  field,
+  value,
+  onChange,
+  readOnly,
+  subformsLibrary,
+  canReleaseToMultimedia,
+  subformReleaseStatus,
+  onReleaseInstance,
+}) {
   const allowed = (subformsLibrary || []).filter((sf) => (field.subform_ids || []).includes(sf._id));
   const current = value && typeof value === 'object' ? value : { subform_id: allowed[0]?._id || '', instances: [] };
 
@@ -346,7 +387,10 @@ function SubformField({ field, value, onChange, readOnly, subformsLibrary }) {
   const setSubformType = (subform_id) => onChange({ subform_id, instances: [] });
 
   const addInstance = () => {
-    onChange({ ...current, instances: [...(current.instances || []), { values: {} }] });
+    onChange({
+      ...current,
+      instances: [...(current.instances || []), { id: crypto.randomUUID(), values: {} }],
+    });
   };
 
   const removeInstance = (idx) => {
@@ -355,7 +399,8 @@ function SubformField({ field, value, onChange, readOnly, subformsLibrary }) {
 
   const updateInstanceValue = (idx, variable, val) => {
     const instances = [...current.instances];
-    instances[idx] = { values: { ...instances[idx].values, [variable]: val } };
+    // Conserva el resto de la instancia (como su "id") al actualizar un valor.
+    instances[idx] = { ...instances[idx], values: { ...instances[idx].values, [variable]: val } };
     onChange({ ...current, instances });
   };
 
@@ -380,17 +425,36 @@ function SubformField({ field, value, onChange, readOnly, subformsLibrary }) {
         </select>
       )}
 
-      {(current.instances || []).map((inst, idx) => (
+      {(current.instances || []).map((inst, idx) => {
+        const releaseStatus = inst.id ? subformReleaseStatus?.[inst.id] : null;
+        return (
         <div key={idx} className="border border-deepViolet/10 rounded-lg p-3 space-y-2 bg-empatheticLinen/60">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-deepViolet">
               {selectedSubform?.nombre} #{idx + 1}
             </span>
-            {!readOnly && (
-              <button onClick={() => removeInstance(idx)} className="text-xs text-red-500 hover:underline">
-                Quitar
-              </button>
-            )}
+            <div className="flex items-center gap-3">
+              {releaseStatus ? (
+                <span className="text-[11px] font-semibold text-cognitiveTeal">
+                  🎬 En multimedia ({releaseStatus})
+                </span>
+              ) : (
+                canReleaseToMultimedia &&
+                inst.id && (
+                  <button
+                    onClick={() => onReleaseInstance?.(inst.id)}
+                    className="text-[11px] font-semibold text-cognitiveTeal hover:underline"
+                  >
+                    Enviar a multimedia
+                  </button>
+                )
+              )}
+              {!readOnly && (
+                <button onClick={() => removeInstance(idx)} className="text-xs text-red-500 hover:underline">
+                  Quitar
+                </button>
+              )}
+            </div>
           </div>
           {(selectedSubform?.fields || []).map((sf) => (
             <div key={sf.id}>
@@ -406,7 +470,8 @@ function SubformField({ field, value, onChange, readOnly, subformsLibrary }) {
             </div>
           ))}
         </div>
-      ))}
+        );
+      })}
 
       {!readOnly && (field.allow_multiple_instances || (current.instances || []).length === 0) && (
         <button

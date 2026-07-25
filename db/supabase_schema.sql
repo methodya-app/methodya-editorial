@@ -201,6 +201,66 @@ alter table public.projects drop constraint if exists projects_criterio_carga_ch
 alter table public.projects add constraint projects_criterio_carga_check
   check (criterio_carga in ('activos','historico'));
 
+-- ---------------------------------------------------------------------
+-- 10. FORMATO DE EXPORTACIÓN DEL VACIAMIENTO
+--    Además de la copia en Google Docs/Slides, se puede generar también
+--    (o en cambio) una copia en PDF, usando la exportación nativa de
+--    Google Drive sobre esa misma copia ya rellenada.
+-- ---------------------------------------------------------------------
+alter table public.projects add column if not exists vaciado_formato text not null default 'google';
+alter table public.projects drop constraint if exists projects_vaciado_formato_check;
+alter table public.projects add constraint projects_vaciado_formato_check
+  check (vaciado_formato in ('google','pdf','ambos'));
+
+-- ---------------------------------------------------------------------
+-- 11. EQUIPO MULTIMEDIA
+--    Roles multimedia (catálogo global, ej. "Diseñador videos multimedia"),
+--    asociados a qué plantillas de subformulario puede trabajar cada uno.
+--    La membresía (quién tiene cada rol, y quién es Coordinador Multimedia)
+--    es por proyecto, igual que project_users, pero en tabla aparte porque
+--    el catálogo de roles es dinámico (no un check fijo de 3 valores).
+-- ---------------------------------------------------------------------
+create table if not exists public.multimedia_roles (
+  id uuid primary key default gen_random_uuid(),
+  nombre text not null unique,
+  subform_ids text[] not null default '{}', -- ObjectId (string) de subforms en Mongo
+  activo boolean not null default true,
+  created_at timestamptz not null default now()
+);
+
+insert into public.multimedia_roles (nombre) values
+  ('Diseñador videos multimedia'), ('Diseñador imágenes multimedia')
+on conflict (nombre) do nothing;
+
+create table if not exists public.multimedia_project_users (
+  id uuid primary key default gen_random_uuid(),
+  project_id uuid not null references public.projects(id) on delete cascade,
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  es_coordinador boolean not null default false,
+  multimedia_role_id uuid references public.multimedia_roles(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  constraint multimedia_project_users_role_xor check (
+    (es_coordinador and multimedia_role_id is null) or
+    (not es_coordinador and multimedia_role_id is not null)
+  ),
+  unique(project_id, user_id, multimedia_role_id)
+);
+
+create index if not exists idx_mpu_project on public.multimedia_project_users(project_id);
+create index if not exists idx_mpu_user on public.multimedia_project_users(user_id);
+create unique index if not exists idx_mpu_coordinador_unico
+  on public.multimedia_project_users(project_id, user_id) where es_coordinador;
+
+-- Modo de asignación (manual/carga/aleatoria) por rol multimedia y proyecto,
+-- mismo mecanismo que ya existe para Creador/Revisor (ver sección 9); el
+-- criterio de carga (activos/histórico) reutiliza projects.criterio_carga.
+create table if not exists public.multimedia_role_assignment_config (
+  project_id uuid not null references public.projects(id) on delete cascade,
+  multimedia_role_id uuid not null references public.multimedia_roles(id) on delete cascade,
+  modo text not null default 'manual' check (modo in ('manual','carga','aleatoria')),
+  primary key (project_id, multimedia_role_id)
+);
+
 -- =====================================================================
 -- Nota sobre RLS: en esta beta el acceso a datos se realiza EXCLUSIVAMENTE
 -- a través de las funciones serverless de Vercel usando la Service Role Key
@@ -217,6 +277,9 @@ alter table public.global_validations enable row level security;
 alter table public.documents enable row level security;
 alter table public.document_history enable row level security;
 alter table public.settings enable row level security;
+alter table public.multimedia_roles enable row level security;
+alter table public.multimedia_project_users enable row level security;
+alter table public.multimedia_role_assignment_config enable row level security;
 -- (Sin policies = sin acceso vía anon key; solo la Service Role Key del backend puede operar)
 
 -- Nota: en versiones recientes del CLI de Supabase, las tablas nuevas ya NO se

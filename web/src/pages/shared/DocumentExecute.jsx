@@ -212,6 +212,37 @@ export default function DocumentExecute() {
     }
   };
 
+  const canReleaseToMultimedia = isAdmin || access.is_revisor_pedagogico || access.is_revisor_estilo;
+
+  const collectAllSubformInstanceIds = () => {
+    const ids = [];
+    for (const section of form?.sections || []) {
+      for (const field of section.fields) {
+        if (field.type !== 'subform') continue;
+        for (const inst of values[field.variable]?.instances || []) {
+          if (inst.id) ids.push(inst.id);
+        }
+      }
+    }
+    return ids;
+  };
+
+  const releaseSubforms = async (instanceIds) => {
+    if (instanceIds.length === 0) return;
+    try {
+      const result = await api.post(`/documents/${id}/subforms/release`, { instance_ids: instanceIds });
+      await load();
+      const parts = [];
+      if (result.released.length > 0) parts.push(`${result.released.length} enviado(s) a multimedia ✓`);
+      if (result.skipped.length > 0) {
+        parts.push(`${result.skipped.length} sin enviar: ${result.skipped.map((s) => s.reason).join('; ')}`);
+      }
+      setToast({ type: result.released.length > 0 ? 'success' : 'error', text: parts.join(' — ') });
+    } catch (err) {
+      setToast({ type: 'error', text: 'No se pudo enviar a multimedia: ' + err.message });
+    }
+  };
+
   const vaciar = async () => {
     if (vaciando) return; // ya hay un vaciamiento en curso, ignora el doble clic
     setSaving(true);
@@ -250,6 +281,15 @@ export default function DocumentExecute() {
         </div>
       )}
 
+      {canReleaseToMultimedia && collectAllSubformInstanceIds().length > 0 && (
+        <button
+          onClick={() => releaseSubforms(collectAllSubformInstanceIds())}
+          className="text-xs font-semibold text-cognitiveTeal hover:underline"
+        >
+          🎬 Enviar todos los subformularios a multimedia
+        </button>
+      )}
+
       {form && (
         <FormRenderer
           form={form}
@@ -267,27 +307,47 @@ export default function DocumentExecute() {
           comments={data.comments}
           projectUsers={projectUsers}
           onCommentsChange={load}
+          canReleaseToMultimedia={canReleaseToMultimedia}
+          subformReleaseStatus={data.subform_release_status}
+          onReleaseInstance={(instanceId) => releaseSubforms([instanceId])}
         />
       )}
 
-      {data.vaciado_resultado && (
-        <div className="paper-card rounded-xl p-4">
-          <p className="font-display font-bold text-deepViolet mb-2">
-            {data.vaciado_drive_file_id ? 'Documento vaciado en Google Drive' : 'Resultado del vaciamiento (simulado)'}
-          </p>
-          {data.vaciado_drive_file_id ? (
-            <a
-              href={data.vaciado_resultado}
-              target="_blank"
-              rel="noreferrer"
-              className="text-sm text-cognitiveTeal hover:underline break-all"
-            >
-              {data.vaciado_resultado} ↗
-            </a>
-          ) : (
-            <pre className="whitespace-pre-wrap text-xs bg-white p-3 rounded-lg border border-deepViolet/10">
-              {data.vaciado_resultado}
-            </pre>
+      {(data.vaciado_resultado || data.vaciado_pdf_resultado) && (
+        <div className="paper-card rounded-xl p-4 space-y-3">
+          {data.vaciado_drive_file_id && (
+            <div>
+              <p className="font-display font-bold text-deepViolet mb-1">Documento vaciado en Google Drive</p>
+              <a
+                href={data.vaciado_resultado}
+                target="_blank"
+                rel="noreferrer"
+                className="text-sm text-cognitiveTeal hover:underline break-all"
+              >
+                {data.vaciado_resultado} ↗
+              </a>
+            </div>
+          )}
+          {data.vaciado_pdf_resultado && (
+            <div>
+              <p className="font-display font-bold text-deepViolet mb-1">Copia en PDF</p>
+              <a
+                href={data.vaciado_pdf_resultado}
+                target="_blank"
+                rel="noreferrer"
+                className="text-sm text-cognitiveTeal hover:underline break-all"
+              >
+                {data.vaciado_pdf_resultado} ↗
+              </a>
+            </div>
+          )}
+          {!data.vaciado_drive_file_id && !data.vaciado_pdf_resultado && (
+            <div>
+              <p className="font-display font-bold text-deepViolet mb-1">Resultado del vaciamiento (simulado)</p>
+              <pre className="whitespace-pre-wrap text-xs bg-white p-3 rounded-lg border border-deepViolet/10">
+                {data.vaciado_resultado}
+              </pre>
+            </div>
           )}
         </div>
       )}

@@ -13,7 +13,8 @@ export async function loadDocumentWithAccess(auth, documentId) {
     .from('documents')
     .select(
       '*, projects(id, estado, plantilla_texto_simulado, plantilla_tipo, plantilla_url, drive_folder_url, ' +
-        'asignacion_creador, asignacion_revisor_pedagogico, asignacion_revisor_estilo, criterio_carga)'
+        'asignacion_creador, asignacion_revisor_pedagogico, asignacion_revisor_estilo, criterio_carga, ' +
+        'vaciado_formato)'
     )
     .eq('id', documentId)
     .single();

@@ -47,3 +47,10 @@ export async function replaceVariablesInDoc(fileId, values) {
 export async function replaceVariablesInSlides(fileId, values) {
   await batchUpdate(SLIDES_API, fileId, buildReplaceRequests(values));
 }
+
+// Inserta texto plano al comienzo de un Google Doc recién creado (vacío).
+// Se usa para el export de un subformulario individual, que no parte de
+// ninguna plantilla (a diferencia del vaciamiento del documento completo).
+export async function insertTextInDoc(fileId, text) {
+  await batchUpdate(DOCS_API, fileId, [{ insertText: { location: { index: 1 }, text } }]);
+}

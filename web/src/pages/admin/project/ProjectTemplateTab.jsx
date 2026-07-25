@@ -10,6 +10,7 @@ export default function ProjectTemplateTab({ project, onSaved, readOnly }) {
   const [url, setUrl] = useState(project.plantilla_url || '');
   const [folder, setFolder] = useState(project.drive_folder_url || '');
   const [texto, setTexto] = useState(project.plantilla_texto_simulado || '');
+  const [formato, setFormato] = useState(project.vaciado_formato || 'google');
   const [saving, setSaving] = useState(false);
   const [checking, setChecking] = useState(false);
   const [checkResult, setCheckResult] = useState(null);
@@ -23,6 +24,7 @@ export default function ProjectTemplateTab({ project, onSaved, readOnly }) {
         plantilla_url: url,
         drive_folder_url: folder,
         plantilla_texto_simulado: texto,
+        vaciado_formato: formato,
       });
       onSaved?.();
     } finally {
@@ -88,6 +90,24 @@ export default function ProjectTemplateTab({ project, onSaved, readOnly }) {
           className="w-full border border-deepViolet/20 rounded-lg p-2 text-sm"
           placeholder="https://drive.google.com/drive/folders/..."
         />
+      </div>
+
+      <div>
+        <label className="block text-xs font-semibold text-slate-500 mb-1">Formato de exportación al vaciar</label>
+        <select
+          disabled={readOnly}
+          value={formato}
+          onChange={(e) => setFormato(e.target.value)}
+          className="w-full border border-deepViolet/20 rounded-lg p-2 text-sm"
+        >
+          <option value="google">Solo Google Docs/Slides</option>
+          <option value="pdf">Solo PDF</option>
+          <option value="ambos">Ambos (Google Docs/Slides y PDF)</option>
+        </select>
+        <p className="mt-1 text-xs text-slate-400">
+          Solo aplica al vaciamiento real en Google Drive; el PDF se genera con la exportación
+          nativa de Google a partir de la copia ya rellenada.
+        </p>
       </div>
 
       {!readOnly && (

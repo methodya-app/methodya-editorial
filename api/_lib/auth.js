@@ -26,11 +26,17 @@ export async function requireAuth(req) {
     .select('project_id, role')
     .eq('user_id', profile.id);
 
+  const { data: multimediaRoles } = await admin
+    .from('multimedia_project_users')
+    .select('project_id, es_coordinador, multimedia_role_id, multimedia_roles(nombre)')
+    .eq('user_id', profile.id);
+
   return {
     user: data.user,
     profile,
     isAdmin: !!profile.is_admin,
     projectRoles: projectRoles || [],
+    multimediaRoles: multimediaRoles || [],
   };
 }
 
@@ -53,4 +59,29 @@ export function roleInProject(auth, projectId) {
   if (auth.isAdmin) return 'Administrador';
   const pr = auth.projectRoles.find((p) => p.project_id === projectId);
   return pr ? pr.role : null;
+}
+
+// Coordinador Multimedia en CUALQUIER proyecto (usado para dar acceso al
+// catálogo global de roles multimedia, que administran Administrador y
+// Coordinador Multimedia por igual).
+export function isMultimediaCoordinator(auth) {
+  return auth.isAdmin || auth.multimediaRoles.some((mr) => mr.es_coordinador);
+}
+
+export function requireMultimediaCoordinator(auth) {
+  if (!isMultimediaCoordinator(auth)) {
+    throw new ApiError(403, 'Requiere ser Administrador o Coordinador Multimedia');
+  }
+}
+
+// Es Coordinador Multimedia de ESE proyecto en particular (o Administrador).
+export function isProjectMultimediaCoordinator(auth, projectId) {
+  return auth.isAdmin || auth.multimediaRoles.some((mr) => mr.project_id === projectId && mr.es_coordinador);
+}
+
+// Todos los roles multimedia (nombre) que el usuario tiene en ese proyecto.
+export function multimediaRolesInProject(auth, projectId) {
+  return auth.multimediaRoles
+    .filter((mr) => mr.project_id === projectId && !mr.es_coordinador)
+    .map((mr) => ({ id: mr.multimedia_role_id, nombre: mr.multimedia_roles?.nombre }));
 }

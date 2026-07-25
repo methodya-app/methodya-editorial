@@ -12,9 +12,16 @@ export default withCors(async (req, res) => {
     .select('project_id, role, projects(nombre, codigo, estado)')
     .eq('user_id', auth.profile.id);
 
+  const { data: multimediaProjectRoles } = await admin
+    .from('multimedia_project_users')
+    .select('project_id, es_coordinador, multimedia_role_id, multimedia_roles(nombre), projects(nombre, codigo, estado)')
+    .eq('user_id', auth.profile.id);
+
   res.status(200).json({
     profile: auth.profile,
     is_admin: auth.isAdmin,
     project_roles: projectRoles || [],
+    multimedia_project_roles: multimediaProjectRoles || [],
+    is_multimedia_coordinator: auth.isAdmin || (multimediaProjectRoles || []).some((mr) => mr.es_coordinador),
   });
 });

@@ -7,6 +7,8 @@ export function AuthProvider({ children }) {
   const [profile, setProfile] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [projectRoles, setProjectRoles] = useState([]);
+  const [multimediaProjectRoles, setMultimediaProjectRoles] = useState([]);
+  const [isMultimediaCoordinator, setIsMultimediaCoordinator] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const loadMe = useCallback(async () => {
@@ -15,10 +17,14 @@ export function AuthProvider({ children }) {
       setProfile(data.profile);
       setIsAdmin(data.is_admin);
       setProjectRoles(data.project_roles || []);
+      setMultimediaProjectRoles(data.multimedia_project_roles || []);
+      setIsMultimediaCoordinator(!!data.is_multimedia_coordinator);
     } catch {
       setProfile(null);
       setIsAdmin(false);
       setProjectRoles([]);
+      setMultimediaProjectRoles([]);
+      setIsMultimediaCoordinator(false);
       setToken(null);
     } finally {
       setLoading(false);
@@ -35,6 +41,8 @@ export function AuthProvider({ children }) {
     setProfile(data.profile);
     setProjectRoles(data.project_roles || []);
     setIsAdmin(!!data.profile.is_admin);
+    setMultimediaProjectRoles(data.multimedia_project_roles || []);
+    setIsMultimediaCoordinator(!!data.is_multimedia_coordinator);
     return data;
   };
 
@@ -43,11 +51,23 @@ export function AuthProvider({ children }) {
     setProfile(null);
     setIsAdmin(false);
     setProjectRoles([]);
+    setMultimediaProjectRoles([]);
+    setIsMultimediaCoordinator(false);
   };
 
   return (
     <AuthContext.Provider
-      value={{ profile, isAdmin, projectRoles, loading, login, logout, refresh: loadMe }}
+      value={{
+        profile,
+        isAdmin,
+        projectRoles,
+        multimediaProjectRoles,
+        isMultimediaCoordinator,
+        loading,
+        login,
+        logout,
+        refresh: loadMe,
+      }}
     >
       {children}
     </AuthContext.Provider>

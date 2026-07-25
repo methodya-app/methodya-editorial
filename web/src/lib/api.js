@@ -9,6 +9,17 @@ export function setToken(token) {
   else localStorage.removeItem('methodya_token');
 }
 
+// Para descargas binarias (ej. un PDF) que no pueden pasar por request(),
+// que siempre intenta parsear JSON.
+export function apiUrl(path) {
+  return `${BASE_URL}/api${path}`;
+}
+
+export function authHeaders() {
+  const token = getToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 async function request(path, { method = 'GET', body } = {}) {
   const headers = { 'Content-Type': 'application/json' };
   const token = getToken();

@@ -28,11 +28,18 @@ export default withCors(async (req, res) => {
     .select('project_id, role, projects(nombre, codigo, estado)')
     .eq('user_id', profile.id);
 
+  const { data: multimediaProjectRoles } = await admin
+    .from('multimedia_project_users')
+    .select('project_id, es_coordinador, multimedia_role_id, multimedia_roles(nombre), projects(nombre, codigo, estado)')
+    .eq('user_id', profile.id);
+
   res.status(200).json({
     access_token: data.session.access_token,
     refresh_token: data.session.refresh_token,
     expires_at: data.session.expires_at,
     profile,
     project_roles: projectRoles || [],
+    multimedia_project_roles: multimediaProjectRoles || [],
+    is_multimedia_coordinator: !!profile.is_admin || (multimediaProjectRoles || []).some((mr) => mr.es_coordinador),
   });
 });

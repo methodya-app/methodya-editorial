@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { withCors, ApiError } from '../../_lib/cors.js';
 import { requireAuth } from '../../_lib/auth.js';
 import { supabaseAdmin } from '../../_lib/supabaseAdmin.js';
@@ -52,10 +53,11 @@ export default withCors(async (req, res) => {
       .eq('project_id', access.document.project_id)
       .eq('activo', true);
 
+    const allFields = form.sections.flatMap((s) => s.fields);
+
     // Solo se exige el cumplimiento estricto de validaciones cuando NO es
     // un guardado parcial (autosave del creador mientras trabaja).
     if (!partial) {
-      const allFields = form.sections.flatMap((s) => s.fields);
       const errors = {};
       for (const field of allFields) {
         if (field.type === 'subform') continue; // se valida dentro del subformulario, fuera de alcance beta
@@ -65,6 +67,19 @@ export default withCors(async (req, res) => {
       }
       if (Object.keys(errors).length > 0) {
         return res.status(422).json({ error: 'Errores de validación', errors });
+      }
+    }
+
+    // A toda instancia de subformulario sin "id" (datos guardados antes de
+    // que el equipo multimedia existiera) se le asigna uno estable, para
+    // poder liberarla al equipo multimedia como tarea independiente.
+    for (const field of allFields) {
+      if (field.type !== 'subform') continue;
+      const fieldValue = values[field.variable];
+      if (fieldValue && Array.isArray(fieldValue.instances)) {
+        fieldValue.instances = fieldValue.instances.map((inst) =>
+          inst.id ? inst : { ...inst, id: randomUUID() }
+        );
       }
     }
 
