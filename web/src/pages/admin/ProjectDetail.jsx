@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { api } from '../../lib/api.js';
 import StateBadge from '../../components/StateBadge.jsx';
 import ProjectFormsTab from './project/ProjectFormsTab.jsx';
+import ProjectParametrizacionTab from './project/ProjectParametrizacionTab.jsx';
 import ProjectDocumentsTab from './project/ProjectDocumentsTab.jsx';
 import ProjectUsersTab from './project/ProjectUsersTab.jsx';
 import ProjectValidationsTab from './project/ProjectValidationsTab.jsx';
@@ -14,6 +15,7 @@ import ProjectMultimediaAssignmentTab from './project/ProjectMultimediaAssignmen
 
 const TABS = [
   { key: 'formularios', label: 'Formularios' },
+  { key: 'parametrizacion', label: 'Parametrización' },
   { key: 'documentos', label: 'Documentos' },
   { key: 'usuarios-del-proyecto', label: 'Usuarios del proyecto' },
   { key: 'validaciones', label: 'Validaciones globales' },
@@ -106,6 +108,7 @@ export default function ProjectDetail() {
       </div>
 
       {tab === 'formularios' && <ProjectFormsTab projectId={id} readOnly={readOnly} />}
+      {tab === 'parametrizacion' && <ProjectParametrizacionTab projectId={id} readOnly={readOnly} />}
       {tab === 'documentos' && <ProjectDocumentsTab projectId={id} readOnly={readOnly} />}
 
       {tab === 'usuarios-del-proyecto' && (

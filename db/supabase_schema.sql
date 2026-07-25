@@ -261,6 +261,61 @@ create table if not exists public.multimedia_role_assignment_config (
   primary key (project_id, multimedia_role_id)
 );
 
+-- ---------------------------------------------------------------------
+-- 12. PARAMETRIZACIÓN DEL PROYECTO
+--    Contexto/guía editorial y pedagógica del proyecto. A diferencia de
+--    global_validations (reglas DURAS: regex que bloquean), esto es
+--    contexto/guía para humanos y, a futuro, para prompts de IA — no bloquea
+--    nada. El shape es flexible (jsonb, puede evolucionar); forma esperada
+--    actual:
+--    {
+--      "estilo": {
+--        "tono": "",
+--        "nivel_formalidad": "",        -- ej: informal | neutral | formal
+--        "terminologia_preferida": "",  -- texto libre
+--        "terminologia_evitar": ""      -- texto libre (guía, no bloqueo duro)
+--      },
+--      "pedagogia": {
+--        "enfoque": "",                 -- ej: STEAM, ABP, Design Thinking, Mixto, Otro
+--        "lineamientos": ""             -- texto libre: objetivos, secuencia didáctica esperada
+--      },
+--      "temas_focos": {
+--        "temas": [],                   -- array de strings (tags)
+--        "descripcion": ""              -- texto libre
+--      },
+--      "poblacion_objetivo": {
+--        "edad_min": null,
+--        "edad_max": null,
+--        "region_contexto": "",
+--        "idiomas": [],                 -- array de strings, sin lista fija
+--        "nivel_lector": ""             -- texto libre, ej. "Básico-medio (Flesch ~60)"
+--      }
+--    }
+-- ---------------------------------------------------------------------
+alter table public.projects add column if not exists parametrizacion jsonb not null default '{}'::jsonb;
+
+create table if not exists public.project_parametrizacion_historial (
+  id uuid primary key default gen_random_uuid(),
+  project_id uuid not null references public.projects(id) on delete cascade,
+  snapshot jsonb not null, -- copia completa de parametrizacion ANTES de sobreescribirla
+  actor_id uuid references public.profiles(id),
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_parametrizacion_historial_project
+  on public.project_parametrizacion_historial(project_id);
+
+-- ---------------------------------------------------------------------
+-- 13. PAPELERA DE USUARIOS
+--    profiles.activo ya existía y sigue siendo lo que bloquea el login
+--    (false = Suspendido, reversible desde el listado principal). Se
+--    agrega profiles.eliminado para la papelera: un usuario eliminado
+--    también queda con activo=false (no puede iniciar sesión) y además
+--    desaparece del listado principal hasta que se restaure.
+-- ---------------------------------------------------------------------
+alter table public.profiles add column if not exists eliminado boolean not null default false;
+create index if not exists idx_profiles_eliminado on public.profiles(eliminado);
+
 -- =====================================================================
 -- Nota sobre RLS: en esta beta el acceso a datos se realiza EXCLUSIVAMENTE
 -- a través de las funciones serverless de Vercel usando la Service Role Key
@@ -280,6 +335,7 @@ alter table public.settings enable row level security;
 alter table public.multimedia_roles enable row level security;
 alter table public.multimedia_project_users enable row level security;
 alter table public.multimedia_role_assignment_config enable row level security;
+alter table public.project_parametrizacion_historial enable row level security;
 -- (Sin policies = sin acceso vía anon key; solo la Service Role Key del backend puede operar)
 
 -- Nota: en versiones recientes del CLI de Supabase, las tablas nuevas ya NO se

@@ -8,9 +8,11 @@ export default withCors(async (req, res) => {
 
   if (req.method === 'GET') {
     requireAdmin(auth);
+    const trashed = req.query.trashed === '1';
     const { data, error } = await admin
       .from('profiles')
       .select('*')
+      .eq('eliminado', trashed)
       .order('created_at', { ascending: false });
     if (error) throw new ApiError(500, error.message);
     return res.status(200).json({ users: data });
