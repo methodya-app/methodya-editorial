@@ -1,6 +1,7 @@
 import { withCors, ApiError } from '../_lib/cors.js';
 import { requireAuth, requireAdmin } from '../_lib/auth.js';
 import { getDb } from '../_lib/mongo.js';
+import { ensureTituloField, normalizePrefijo } from '../_lib/subformDefaults.js';
 
 // Biblioteca global de subformularios reutilizables entre proyectos.
 export default withCors(async (req, res) => {
@@ -14,12 +15,17 @@ export default withCors(async (req, res) => {
 
   if (req.method === 'POST') {
     requireAdmin(auth);
-    const { nombre, descripcion, fields } = req.body || {};
+    const { nombre, descripcion, prefijo, fields } = req.body || {};
     if (!nombre) throw new ApiError(400, 'nombre es obligatorio');
+    const normalizedPrefijo = normalizePrefijo(prefijo);
+    if (!normalizedPrefijo) {
+      throw new ApiError(400, 'prefijo es obligatorio: máximo 5 caracteres, solo letras, números, "-" o "_"');
+    }
     const doc = {
       nombre,
       descripcion: descripcion || '',
-      fields: fields || [],
+      prefijo: normalizedPrefijo,
+      fields: ensureTituloField(fields),
       created_by: auth.profile.id,
       created_at: new Date(),
     };

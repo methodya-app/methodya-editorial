@@ -431,7 +431,7 @@ function SubformField({
         <div key={idx} className="border border-deepViolet/10 rounded-lg p-3 space-y-2 bg-empatheticLinen/60">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-deepViolet">
-              {selectedSubform?.nombre} #{idx + 1}
+              {selectedSubform?.nombre} {inst.codigo ? `(${inst.codigo})` : `#${idx + 1}`}
             </span>
             <div className="flex items-center gap-3">
               {releaseStatus ? (

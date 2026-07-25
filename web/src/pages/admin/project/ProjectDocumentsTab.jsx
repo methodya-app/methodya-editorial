@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { api } from '../../../lib/api.js';
 import StateBadge from '../../../components/StateBadge.jsx';
 import ProcessingModal from '../../../components/ProcessingModal.jsx';
+import ProjectSubformsTab from './ProjectSubformsTab.jsx';
 
 // Estados válidos para editar/restaurar un documento (todos menos
 // "Eliminado", que se maneja aparte con el botón dedicado de la papelera).
@@ -22,7 +23,7 @@ function usersByRole(projectUsers, role) {
 }
 
 export default function ProjectDocumentsTab({ projectId, readOnly }) {
-  const [tab, setTab] = useState('documentos'); // 'documentos' | 'papelera'
+  const [tab, setTab] = useState('documentos'); // 'documentos' | 'subformularios' | 'papelera'
   const [documents, setDocuments] = useState([]);
   const [trashedDocuments, setTrashedDocuments] = useState([]);
   const [forms, setForms] = useState([]);
@@ -42,6 +43,35 @@ export default function ProjectDocumentsTab({ projectId, readOnly }) {
   const [restoringId, setRestoringId] = useState(null);
   const [restoreEstado, setRestoreEstado] = useState('Pendiente');
   const [vaciandoId, setVaciandoId] = useState(null);
+
+  const [filterCodigo, setFilterCodigo] = useState('');
+  const [filterTipo, setFilterTipo] = useState('');
+  const [filterEstado, setFilterEstado] = useState('');
+  const [filterCreador, setFilterCreador] = useState('');
+  const [filterRevisorPedagogico, setFilterRevisorPedagogico] = useState('');
+  const [filterRevisorEstilo, setFilterRevisorEstilo] = useState('');
+
+  const hasActiveFilters =
+    filterCodigo || filterTipo || filterEstado || filterCreador || filterRevisorPedagogico || filterRevisorEstilo;
+
+  const clearFilters = () => {
+    setFilterCodigo('');
+    setFilterTipo('');
+    setFilterEstado('');
+    setFilterCreador('');
+    setFilterRevisorPedagogico('');
+    setFilterRevisorEstilo('');
+  };
+
+  const filteredDocuments = documents.filter((d) => {
+    if (filterCodigo && !d.codigo.toLowerCase().includes(filterCodigo.toLowerCase())) return false;
+    if (filterTipo && d.document_type_id !== filterTipo) return false;
+    if (filterEstado && d.estado !== filterEstado) return false;
+    if (filterCreador && d.creador_id !== filterCreador) return false;
+    if (filterRevisorPedagogico && d.revisor_pedagogico_id !== filterRevisorPedagogico) return false;
+    if (filterRevisorEstilo && d.revisor_estilo_id !== filterRevisorEstilo) return false;
+    return true;
+  });
 
   const load = async () => {
     setLoading(true);
@@ -163,6 +193,14 @@ export default function ProjectDocumentsTab({ projectId, readOnly }) {
             Documentos
           </button>
           <button
+            onClick={() => setTab('subformularios')}
+            className={`px-3 py-1.5 rounded-md text-sm font-semibold ${
+              tab === 'subformularios' ? 'bg-white shadow text-deepViolet' : 'text-deepViolet/60'
+            }`}
+          >
+            Subformularios
+          </button>
+          <button
             onClick={() => setTab('papelera')}
             className={`px-3 py-1.5 rounded-md text-sm font-semibold ${
               tab === 'papelera' ? 'bg-white shadow text-deepViolet' : 'text-deepViolet/60'
@@ -280,14 +318,116 @@ export default function ProjectDocumentsTab({ projectId, readOnly }) {
         </form>
       )}
 
+      {!loading && tab === 'documentos' && (
+        <div className="paper-card rounded-xl p-3 grid sm:grid-cols-3 lg:grid-cols-6 gap-2 items-end">
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-500 mb-1">Código</label>
+            <input
+              value={filterCodigo}
+              onChange={(e) => setFilterCodigo(e.target.value)}
+              placeholder="Buscar..."
+              className="w-full border border-deepViolet/20 rounded-lg p-1.5 text-xs"
+            />
+          </div>
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-500 mb-1">Tipo de documento</label>
+            <select
+              value={filterTipo}
+              onChange={(e) => setFilterTipo(e.target.value)}
+              className="w-full border border-deepViolet/20 rounded-lg p-1.5 text-xs"
+            >
+              <option value="">Todos</option>
+              {docTypes.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.nombre}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-500 mb-1">Estado</label>
+            <select
+              value={filterEstado}
+              onChange={(e) => setFilterEstado(e.target.value)}
+              className="w-full border border-deepViolet/20 rounded-lg p-1.5 text-xs"
+            >
+              <option value="">Todos</option>
+              {EDITABLE_STATES.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-500 mb-1">Creador Experto</label>
+            <select
+              value={filterCreador}
+              onChange={(e) => setFilterCreador(e.target.value)}
+              className="w-full border border-deepViolet/20 rounded-lg p-1.5 text-xs"
+            >
+              <option value="">Todos</option>
+              {usersByRole(projectUsers, 'Creador Experto').map((pu) => (
+                <option key={pu.profiles.id} value={pu.profiles.id}>
+                  {pu.profiles.nombre} {pu.profiles.apellido}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-500 mb-1">Revisor Pedagógico</label>
+            <select
+              value={filterRevisorPedagogico}
+              onChange={(e) => setFilterRevisorPedagogico(e.target.value)}
+              className="w-full border border-deepViolet/20 rounded-lg p-1.5 text-xs"
+            >
+              <option value="">Todos</option>
+              {usersByRole(projectUsers, 'Revisor Pedagógico').map((pu) => (
+                <option key={pu.profiles.id} value={pu.profiles.id}>
+                  {pu.profiles.nombre} {pu.profiles.apellido}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex gap-2 items-end">
+            <div className="flex-1">
+              <label className="block text-[11px] font-semibold text-slate-500 mb-1">Revisor de Estilo</label>
+              <select
+                value={filterRevisorEstilo}
+                onChange={(e) => setFilterRevisorEstilo(e.target.value)}
+                className="w-full border border-deepViolet/20 rounded-lg p-1.5 text-xs"
+              >
+                <option value="">Todos</option>
+                {usersByRole(projectUsers, 'Revisor de Estilo').map((pu) => (
+                  <option key={pu.profiles.id} value={pu.profiles.id}>
+                    {pu.profiles.nombre} {pu.profiles.apellido}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {hasActiveFilters && (
+              <button
+                onClick={clearFilters}
+                className="text-xs font-semibold text-red-500 hover:underline whitespace-nowrap pb-1.5"
+              >
+                Limpiar
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {loading ? (
         <p className="text-slate-500 text-sm">Cargando...</p>
+      ) : tab === 'subformularios' ? (
+        <ProjectSubformsTab projectId={projectId} />
       ) : tab === 'documentos' ? (
         <div className="paper-card rounded-xl overflow-hidden overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-deepViolet/5 text-left text-xs uppercase text-deepViolet/70">
               <tr>
                 <th className="p-3">Código</th>
+                <th className="p-3">Tipo de documento</th>
                 <th className="p-3">Estado</th>
                 <th className="p-3">Creador Experto</th>
                 <th className="p-3">Revisor Pedagógico</th>
@@ -296,7 +436,7 @@ export default function ProjectDocumentsTab({ projectId, readOnly }) {
               </tr>
             </thead>
             <tbody>
-              {documents.map((d) => (
+              {filteredDocuments.map((d) => (
                 <Fragment key={d.id}>
                   <tr className="border-t border-deepViolet/10">
                     <td className="p-3 font-mono text-xs">
@@ -304,6 +444,7 @@ export default function ProjectDocumentsTab({ projectId, readOnly }) {
                         {d.codigo}
                       </Link>
                     </td>
+                    <td className="p-3 text-xs">{d.document_types?.nombre || '—'}</td>
                     <td className="p-3"><StateBadge estado={d.estado} /></td>
                     <td className="p-3 text-xs">{d.creador ? `${d.creador.nombre} ${d.creador.apellido}` : '—'}</td>
                     <td className="p-3 text-xs">
@@ -340,7 +481,7 @@ export default function ProjectDocumentsTab({ projectId, readOnly }) {
                   </tr>
                   {editingId === d.id && editValues && (
                     <tr className="border-t border-deepViolet/10 bg-deepViolet/5">
-                      <td colSpan={6} className="p-4">
+                      <td colSpan={7} className="p-4">
                         <div className="grid sm:grid-cols-4 gap-3">
                           <div>
                             <label className="block text-xs font-semibold text-slate-500 mb-1">Estado</label>
@@ -417,8 +558,15 @@ export default function ProjectDocumentsTab({ projectId, readOnly }) {
               ))}
               {documents.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="p-6 text-center text-slate-400">
+                  <td colSpan={7} className="p-6 text-center text-slate-400">
                     No hay documentos registrados en este proyecto.
+                  </td>
+                </tr>
+              )}
+              {documents.length > 0 && filteredDocuments.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="p-6 text-center text-slate-400">
+                    Ningún documento coincide con el filtro.
                   </td>
                 </tr>
               )}
