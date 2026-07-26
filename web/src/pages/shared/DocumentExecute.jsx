@@ -275,6 +275,15 @@ export default function DocumentExecute() {
         <p className="text-sm text-slate-500">{form?.titulo}</p>
       </div>
 
+      {document.poblaciones_objetivo && (
+        <div className="text-sm bg-cognitiveTeal-light text-cognitiveTeal-deep rounded-lg p-2.5">
+          <strong>Población objetivo:</strong> {document.poblaciones_objetivo.nombre} (
+          {document.poblaciones_objetivo.edad_min}-{document.poblaciones_objetivo.edad_max} años
+          {document.poblaciones_objetivo.nivel_lector ? `, nivel lector: ${document.poblaciones_objetivo.nivel_lector}` : ''}
+          )
+        </div>
+      )}
+
       {readOnly && (
         <div className="text-sm text-warmAmber-hover bg-warmAmber-light rounded-lg p-2">
           Este documento está en modo solo lectura para tu rol en su estado actual.

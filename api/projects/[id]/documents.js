@@ -4,11 +4,12 @@ import { supabaseAdmin } from '../../_lib/supabaseAdmin.js';
 import { STAGE_ROLE, autoAssignIfNeeded } from '../../_lib/groupAssignment.js';
 
 const DOCUMENT_COLUMNS =
-  'id, codigo, estado, form_id, document_type_id, creador_id, revisor_pedagogico_id, revisor_estilo_id, vaciado_at, created_at, updated_at,' +
+  'id, codigo, estado, form_id, document_type_id, poblacion_objetivo_id, creador_id, revisor_pedagogico_id, revisor_estilo_id, vaciado_at, created_at, updated_at,' +
   'creador:creador_id(nombre, apellido, email),' +
   'revisor_pedagogico:revisor_pedagogico_id(nombre, apellido, email),' +
   'revisor_estilo:revisor_estilo_id(nombre, apellido, email),' +
-  'document_types(nombre)';
+  'document_types(nombre),' +
+  'poblaciones_objetivo(id, nombre, edad_min, edad_max)';
 
 export default withCors(async (req, res) => {
   const auth = await requireAuth(req);
@@ -82,12 +83,29 @@ export default withCors(async (req, res) => {
       codigo,
       form_id,
       document_type_id,
+      poblacion_objetivo_id,
       creador_id,
       revisor_pedagogico_id,
       revisor_estilo_id,
     } = req.body || {};
 
     if (!codigo || !form_id) throw new ApiError(400, 'codigo y form_id son obligatorios');
+
+    const { data: projectRow } = await admin
+      .from('projects')
+      .select('parametrizacion')
+      .eq('id', project_id)
+      .single();
+    const allowedPoblacionIds = projectRow?.parametrizacion?.poblacion_objetivo?.poblacion_ids || [];
+    if (allowedPoblacionIds.length === 0) {
+      throw new ApiError(
+        422,
+        'Este proyecto no tiene poblaciones objetivo configuradas. Configúralas en Parametrización → Población objetivo antes de crear documentos.'
+      );
+    }
+    if (!poblacion_objetivo_id || !allowedPoblacionIds.includes(poblacion_objetivo_id)) {
+      throw new ApiError(400, 'poblacion_objetivo_id es obligatorio y debe ser una de las poblaciones configuradas para este proyecto');
+    }
 
     const { data, error } = await admin
       .from('documents')
@@ -96,6 +114,7 @@ export default withCors(async (req, res) => {
         codigo,
         form_id,
         document_type_id: document_type_id || null,
+        poblacion_objetivo_id,
         creador_id: creador_id || null,
         revisor_pedagogico_id: revisor_pedagogico_id || null,
         revisor_estilo_id: revisor_estilo_id || null,

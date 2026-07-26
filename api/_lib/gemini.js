@@ -105,3 +105,133 @@ export async function generateRegexFromDescription(ruleText) {
     };
   }
 }
+
+// Analiza un documento (PDF, TXT o Markdown, recibido en base64) usando la
+// comprensión de documentos nativa de Gemini (se envía como inline_data, sin
+// necesidad de una librería propia de extracción de PDF/DOCX) y devuelve un
+// resumen breve en español, pensado para poblar el campo "Región/contexto"
+// de una población objetivo. No hay heurística de respaldo: sin una clave de
+// Gemini configurada, simplemente no es posible resumir el documento.
+export async function summarizeDocumentContext({ base64Data, mimeType }) {
+  if (!base64Data) throw new ApiError(400, 'El archivo es obligatorio');
+
+  const apiKey = await resolveGeminiKey();
+  const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+
+  if (!apiKey) {
+    throw new ApiError(
+      422,
+      'No hay una clave de Gemini configurada en Parámetros del servidor; no es posible resumir el documento automáticamente.'
+    );
+  }
+
+  const resp = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              {
+                text:
+                  'Eres un asistente experto de la plataforma editorial educativa METHODYA. Analiza el ' +
+                  'documento adjunto (describe el contexto/región de una población objetivo educativa) y ' +
+                  'redacta un resumen breve en español (máximo 6-8 líneas), en prosa corrida, listo para ' +
+                  'usarse tal cual como el campo "Región/contexto" de esa población. No agregues títulos, ' +
+                  'listas ni markdown, responde únicamente el texto del resumen.',
+              },
+              { inline_data: { mime_type: mimeType, data: base64Data } },
+            ],
+          },
+        ],
+      }),
+    }
+  );
+
+  if (!resp.ok) {
+    const errText = await resp.text().catch(() => '');
+    throw new ApiError(502, `Gemini respondió ${resp.status}: ${errText.slice(0, 200)}`);
+  }
+
+  const result = await resp.json();
+  const summary = result?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+  if (!summary) throw new ApiError(502, 'Gemini no devolvió un resumen utilizable para este documento');
+
+  return { summary, source: 'gemini' };
+}
+
+// Analiza el manual/ficha técnica de un equipo de dotación educativa (PDF,
+// TXT o Markdown, recibido en base64) y extrae su información técnica UNA
+// sola vez: un objeto de especificaciones (clave-valor, solo lo que el
+// documento realmente menciona) y un resumen breve. Se guarda en
+// dotacion_referencias para no tener que releer el manual completo en cada
+// ejecución. Igual que summarizeDocumentContext, sin heurística de
+// respaldo: sin clave de Gemini no es posible extraer nada.
+export async function extractDotacionSpecs({ base64Data, mimeType }) {
+  if (!base64Data) throw new ApiError(400, 'El archivo es obligatorio');
+
+  const apiKey = await resolveGeminiKey();
+  const model = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+
+  if (!apiKey) {
+    throw new ApiError(
+      422,
+      'No hay una clave de Gemini configurada en Parámetros del servidor; no es posible analizar el documento automáticamente.'
+    );
+  }
+
+  const resp = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              {
+                text:
+                  'Eres un asistente experto de la plataforma editorial educativa METHODYA. Analiza el manual ' +
+                  'o ficha técnica adjunta de un equipo de dotación educativa (ej. un kit STEAM, un kit IoT, ' +
+                  'una pantalla interactiva) y extrae su información técnica relevante. Responde ÚNICAMENTE ' +
+                  'un JSON válido (sin markdown, sin texto extra) con el formato: {"especificaciones": ' +
+                  '{"<clave>": "<valor>", ...}, "resumen": "<resumen breve en español, 4-6 líneas, en prosa ' +
+                  'corrida>"}. En "especificaciones" incluye únicamente los campos técnicos que el documento ' +
+                  'realmente menciona (ej. sensores, componentes, conectividad, alimentación, requisitos, ' +
+                  'contenido de la caja), con nombres de clave cortos en español, minúsculas y con guiones ' +
+                  'bajos en vez de espacios.',
+              },
+              { inline_data: { mime_type: mimeType, data: base64Data } },
+            ],
+          },
+        ],
+      }),
+    }
+  );
+
+  if (!resp.ok) {
+    const errText = await resp.text().catch(() => '');
+    throw new ApiError(502, `Gemini respondió ${resp.status}: ${errText.slice(0, 200)}`);
+  }
+
+  const result = await resp.json();
+  const rawText = result?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  const cleanJson = rawText.replace(/```json|```/g, '').trim();
+
+  let parsed;
+  try {
+    parsed = JSON.parse(cleanJson);
+  } catch {
+    throw new ApiError(502, 'Gemini no devolvió un JSON válido para este documento');
+  }
+  if (!parsed.resumen) throw new ApiError(502, 'Gemini no devolvió un resumen utilizable para este documento');
+
+  return {
+    especificaciones:
+      parsed.especificaciones && typeof parsed.especificaciones === 'object' ? parsed.especificaciones : {},
+    resumen: parsed.resumen,
+    source: 'gemini',
+  };
+}

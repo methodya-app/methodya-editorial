@@ -216,7 +216,7 @@ export default function ProjectFormsTab({ projectId, readOnly }) {
                         onClick={() => startEdit(f)}
                         className="text-xs font-semibold text-deepViolet hover:underline"
                       >
-                        Editar
+                        Editar nombre y tipo
                       </button>
                       <button
                         onClick={() => deleteForm(f)}

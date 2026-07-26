@@ -316,6 +316,75 @@ create index if not exists idx_parametrizacion_historial_project
 alter table public.profiles add column if not exists eliminado boolean not null default false;
 create index if not exists idx_profiles_eliminado on public.profiles(eliminado);
 
+-- ---------------------------------------------------------------------
+-- 14. POBLACIONES OBJETIVO (catálogo global reutilizable)
+--    Antes cada proyecto describía su propia edad/nivel lector en su
+--    parametrización; ahora se define una vez aquí y el proyecto solo
+--    referencia (por id) las poblaciones que le aplican.
+-- ---------------------------------------------------------------------
+create table if not exists public.poblaciones_objetivo (
+  id uuid primary key default gen_random_uuid(),
+  nombre text not null unique,
+  edad_min int not null,
+  edad_max int not null,
+  nivel_lector text not null,
+  desarrollo_cognitivo text,
+  pensamiento_logico_steam text,
+  socioemocional_comunicacion text,
+  activo boolean not null default true,
+  created_by uuid references public.profiles(id),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+-- ---------------------------------------------------------------------
+-- 15. DOTACIÓN (catálogo global reutilizable, dos niveles)
+--    Tipo de dotación (KIT STEAM, KIT IoT, Pantalla interactiva...) y,
+--    dentro de cada tipo, sus Referencias concretas: dos kits del mismo
+--    tipo pueden traer sensores/componentes distintos según la
+--    referencia/modelo. Cada referencia guarda su ficha técnica
+--    (especificaciones + resumen) extraída UNA sola vez (a mano, o
+--    importando un manual/guía y analizándolo con IA), para no tener que
+--    releer el manual completo en cada ejecución.
+-- ---------------------------------------------------------------------
+create table if not exists public.dotacion_tipos (
+  id uuid primary key default gen_random_uuid(),
+  nombre text not null unique,
+  descripcion text,
+  activo boolean not null default true,
+  created_by uuid references public.profiles(id),
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.dotacion_referencias (
+  id uuid primary key default gen_random_uuid(),
+  dotacion_tipo_id uuid not null references public.dotacion_tipos(id) on delete cascade,
+  referencia text not null, -- código/modelo/SKU, ej. "ST-200"
+  nombre text not null, -- nombre comercial, ej. "KIT STEAM Pro v2"
+  descripcion text,
+  especificaciones jsonb not null default '{}'::jsonb, -- ficha técnica: sensores, componentes, requisitos, etc.
+  resumen text, -- resumen en texto plano (generado por IA o escrito a mano)
+  fuente text not null default 'manual' check (fuente in ('manual', 'ia_archivo')),
+  activo boolean not null default true,
+  created_by uuid references public.profiles(id),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique(dotacion_tipo_id, referencia)
+);
+
+create index if not exists idx_dotacion_referencias_tipo on public.dotacion_referencias(dotacion_tipo_id);
+
+-- ---------------------------------------------------------------------
+-- 16. POBLACIÓN OBJETIVO POR DOCUMENTO
+--    Cada documento debe indicar a cuál de las poblaciones objetivo
+--    configuradas en el proyecto (ver Parametrización → Población
+--    objetivo) va dirigido, para que quien lo diligencie (persona o, a
+--    futuro, un agente de IA) sepa desde el inicio para quién escribe.
+--    Se valida en la API que sea una de las poblaciones ya seleccionadas
+--    para ese proyecto (no cualquiera del catálogo global).
+-- ---------------------------------------------------------------------
+alter table public.documents add column if not exists poblacion_objetivo_id uuid references public.poblaciones_objetivo(id);
+
 -- =====================================================================
 -- Nota sobre RLS: en esta beta el acceso a datos se realiza EXCLUSIVAMENTE
 -- a través de las funciones serverless de Vercel usando la Service Role Key
@@ -336,6 +405,9 @@ alter table public.multimedia_roles enable row level security;
 alter table public.multimedia_project_users enable row level security;
 alter table public.multimedia_role_assignment_config enable row level security;
 alter table public.project_parametrizacion_historial enable row level security;
+alter table public.poblaciones_objetivo enable row level security;
+alter table public.dotacion_tipos enable row level security;
+alter table public.dotacion_referencias enable row level security;
 -- (Sin policies = sin acceso vía anon key; solo la Service Role Key del backend puede operar)
 
 -- Nota: en versiones recientes del CLI de Supabase, las tablas nuevas ya NO se

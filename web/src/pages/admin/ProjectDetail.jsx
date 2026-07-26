@@ -6,21 +6,17 @@ import ProjectFormsTab from './project/ProjectFormsTab.jsx';
 import ProjectParametrizacionTab from './project/ProjectParametrizacionTab.jsx';
 import ProjectDocumentsTab from './project/ProjectDocumentsTab.jsx';
 import ProjectUsersTab from './project/ProjectUsersTab.jsx';
-import ProjectValidationsTab from './project/ProjectValidationsTab.jsx';
 import ProjectMassChangesTab from './project/ProjectMassChangesTab.jsx';
-import ProjectTemplateTab from './project/ProjectTemplateTab.jsx';
 import ProjectAssignmentTab from './project/ProjectAssignmentTab.jsx';
 import ProjectMultimediaTeamTab from './project/ProjectMultimediaTeamTab.jsx';
 import ProjectMultimediaAssignmentTab from './project/ProjectMultimediaAssignmentTab.jsx';
 
 const TABS = [
   { key: 'formularios', label: 'Formularios' },
-  { key: 'parametrizacion', label: 'Parametrización' },
   { key: 'documentos', label: 'Documentos' },
+  { key: 'parametrizacion', label: 'Parametrización' },
   { key: 'usuarios-del-proyecto', label: 'Usuarios del proyecto' },
-  { key: 'validaciones', label: 'Validaciones globales' },
   { key: 'cambios-masivos', label: 'Cambios masivos' },
-  { key: 'plantilla', label: 'Plantilla y vaciamiento' },
 ];
 
 const USUARIOS_GROUP_TABS = [
@@ -108,8 +104,10 @@ export default function ProjectDetail() {
       </div>
 
       {tab === 'formularios' && <ProjectFormsTab projectId={id} readOnly={readOnly} />}
-      {tab === 'parametrizacion' && <ProjectParametrizacionTab projectId={id} readOnly={readOnly} />}
       {tab === 'documentos' && <ProjectDocumentsTab projectId={id} readOnly={readOnly} />}
+      {tab === 'parametrizacion' && (
+        <ProjectParametrizacionTab projectId={id} project={project} onSaved={load} readOnly={readOnly} />
+      )}
 
       {tab === 'usuarios-del-proyecto' && (
         <div className="space-y-4">
@@ -137,9 +135,7 @@ export default function ProjectDetail() {
         </div>
       )}
 
-      {tab === 'validaciones' && <ProjectValidationsTab projectId={id} readOnly={readOnly} />}
       {tab === 'cambios-masivos' && <ProjectMassChangesTab projectId={id} readOnly={readOnly} />}
-      {tab === 'plantilla' && <ProjectTemplateTab project={project} onSaved={load} readOnly={readOnly} />}
     </div>
   );
 }

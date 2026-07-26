@@ -13,6 +13,8 @@ import DocumentTypes from './pages/admin/DocumentTypes.jsx';
 import SubformsLibrary from './pages/admin/SubformsLibrary.jsx';
 import ParagraphsLibrary from './pages/admin/ParagraphsLibrary.jsx';
 import ServerSettings from './pages/admin/ServerSettings.jsx';
+import TargetPopulations from './pages/admin/TargetPopulations.jsx';
+import DotacionCatalog from './pages/admin/DotacionCatalog.jsx';
 import MultimediaRoles from './pages/MultimediaRoles.jsx';
 import MyProjects from './pages/shared/MyProjects.jsx';
 import MyDocuments from './pages/shared/MyDocuments.jsx';
@@ -43,6 +45,14 @@ export default function App() {
         <Route path="/admin/subformularios" element={<ProtectedRoute adminOnly><SubformsLibrary /></ProtectedRoute>} />
         <Route path="/admin/parrafos" element={<ProtectedRoute adminOnly><ParagraphsLibrary /></ProtectedRoute>} />
         <Route path="/admin/parametros" element={<ProtectedRoute adminOnly><ServerSettings /></ProtectedRoute>} />
+        <Route
+          path="/admin/poblaciones-objetivo"
+          element={<ProtectedRoute adminOnly><TargetPopulations /></ProtectedRoute>}
+        />
+        <Route
+          path="/admin/dotacion"
+          element={<ProtectedRoute adminOnly><DotacionCatalog /></ProtectedRoute>}
+        />
         <Route
           path="/multimedia-roles"
           element={<ProtectedRoute multimediaCoordinatorOnly><MultimediaRoles /></ProtectedRoute>}
