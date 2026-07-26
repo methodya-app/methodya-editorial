@@ -11,9 +11,10 @@ export default withCors(async (req, res) => {
     if (!project_id) throw new ApiError(400, 'project_id es requerido');
     if (!roleInProject(auth, project_id)) throw new ApiError(403, 'Sin acceso al proyecto');
 
+    const trashed = req.query.trashed === '1';
     const forms = await db
       .collection('forms')
-      .find({ project_id })
+      .find({ project_id, eliminado: trashed ? true : { $ne: true } })
       .sort({ created_at: -1 })
       .toArray();
     return res.status(200).json({ forms });

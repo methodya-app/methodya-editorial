@@ -33,6 +33,8 @@ export default function ProjectDocumentsTab({ projectId, readOnly }) {
   const [codigo, setCodigo] = useState('');
   const [formId, setFormId] = useState('');
   const [documentTypeId, setDocumentTypeId] = useState('');
+  const [poblacionObjetivoId, setPoblacionObjetivoId] = useState('');
+  const [projectPoblaciones, setProjectPoblaciones] = useState([]);
   const [creadorId, setCreadorId] = useState('');
   const [revisorPedagogicoId, setRevisorPedagogicoId] = useState('');
   const [revisorEstiloId, setRevisorEstiloId] = useState('');
@@ -75,18 +77,23 @@ export default function ProjectDocumentsTab({ projectId, readOnly }) {
 
   const load = async () => {
     setLoading(true);
-    const [docsData, trashData, formsData, usersData, typesData] = await Promise.all([
-      api.get(`/projects/${projectId}/documents`),
-      api.get(`/projects/${projectId}/documents?trashed=1`),
-      api.get(`/forms?project_id=${projectId}`),
-      api.get(`/projects/${projectId}/users`),
-      api.get('/document-types'),
-    ]);
+    const [docsData, trashData, formsData, usersData, typesData, parametrizacionData, poblacionesData] =
+      await Promise.all([
+        api.get(`/projects/${projectId}/documents`),
+        api.get(`/projects/${projectId}/documents?trashed=1`),
+        api.get(`/forms?project_id=${projectId}`),
+        api.get(`/projects/${projectId}/users`),
+        api.get('/document-types'),
+        api.get(`/projects/${projectId}/parametrizacion`),
+        api.get('/poblaciones-objetivo'),
+      ]);
     setDocuments(docsData.documents);
     setTrashedDocuments(trashData.documents);
     setForms(formsData.forms);
     setProjectUsers(usersData.project_users);
     setDocTypes(typesData.document_types);
+    const allowedIds = parametrizacionData.parametrizacion?.poblacion_objetivo?.poblacion_ids || [];
+    setProjectPoblaciones(poblacionesData.poblaciones_objetivo.filter((p) => allowedIds.includes(p.id)));
     setLoading(false);
   };
 
@@ -96,17 +103,23 @@ export default function ProjectDocumentsTab({ projectId, readOnly }) {
 
   const createDocument = async (e) => {
     e.preventDefault();
-    await api.post(`/projects/${projectId}/documents`, {
-      codigo,
-      form_id: formId,
-      document_type_id: documentTypeId || null,
-      creador_id: creadorId || null,
-      revisor_pedagogico_id: revisorPedagogicoId || null,
-      revisor_estilo_id: revisorEstiloId || null,
-    });
-    setCodigo('');
-    setShowForm(false);
-    load();
+    try {
+      await api.post(`/projects/${projectId}/documents`, {
+        codigo,
+        form_id: formId,
+        document_type_id: documentTypeId || null,
+        poblacion_objetivo_id: poblacionObjetivoId,
+        creador_id: creadorId || null,
+        revisor_pedagogico_id: revisorPedagogicoId || null,
+        revisor_estilo_id: revisorEstiloId || null,
+      });
+      setCodigo('');
+      setPoblacionObjetivoId('');
+      setShowForm(false);
+      load();
+    } catch (err) {
+      alert('No se pudo crear: ' + err.message);
+    }
   };
 
   const vaciar = async (id) => {
@@ -131,6 +144,7 @@ export default function ProjectDocumentsTab({ projectId, readOnly }) {
     setEditingId(d.id);
     setEditValues({
       estado: d.estado,
+      poblacion_objetivo_id: d.poblacion_objetivo_id || '',
       creador_id: d.creador_id || '',
       revisor_pedagogico_id: d.revisor_pedagogico_id || '',
       revisor_estilo_id: d.revisor_estilo_id || '',
@@ -141,6 +155,7 @@ export default function ProjectDocumentsTab({ projectId, readOnly }) {
     try {
       await api.put(`/documents/${id}`, {
         estado: editValues.estado,
+        poblacion_objetivo_id: editValues.poblacion_objetivo_id,
         creador_id: editValues.creador_id || null,
         revisor_pedagogico_id: editValues.revisor_pedagogico_id || null,
         revisor_estilo_id: editValues.revisor_estilo_id || null,
@@ -213,12 +228,26 @@ export default function ProjectDocumentsTab({ projectId, readOnly }) {
         {!readOnly && tab === 'documentos' && (
           <button
             onClick={() => setShowForm((s) => !s)}
-            className="px-4 py-2 rounded-lg bg-cognitiveTeal text-white text-sm font-semibold"
+            disabled={projectPoblaciones.length === 0}
+            title={
+              projectPoblaciones.length === 0
+                ? 'Configura al menos una población objetivo en Parametrización antes de crear documentos'
+                : undefined
+            }
+            className="px-4 py-2 rounded-lg bg-cognitiveTeal text-white text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
           >
             + Nuevo registro
           </button>
         )}
       </div>
+
+      {!readOnly && tab === 'documentos' && projectPoblaciones.length === 0 && (
+        <div className="text-sm text-warmAmber-hover bg-warmAmber-light rounded-lg p-3">
+          Este proyecto no tiene poblaciones objetivo configuradas. Ve a la pestaña{' '}
+          <strong>Parametrización → Población objetivo</strong> y selecciona al menos una antes de crear
+          documentos: cada documento debe indicar a cuál va dirigido.
+        </div>
+      )}
 
       {showForm && tab === 'documentos' && (
         <form onSubmit={createDocument} className="paper-card rounded-xl p-4 grid sm:grid-cols-3 gap-3">
@@ -259,6 +288,22 @@ export default function ProjectDocumentsTab({ projectId, readOnly }) {
               {docTypes.map((t) => (
                 <option key={t.id} value={t.id}>
                   {t.nombre}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1">Población objetivo</label>
+            <select
+              required
+              value={poblacionObjetivoId}
+              onChange={(e) => setPoblacionObjetivoId(e.target.value)}
+              className="w-full border border-deepViolet/20 rounded-lg p-2 text-sm"
+            >
+              <option value="">Seleccionar...</option>
+              {projectPoblaciones.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.nombre} ({p.edad_min}-{p.edad_max} años)
                 </option>
               ))}
             </select>
@@ -428,6 +473,7 @@ export default function ProjectDocumentsTab({ projectId, readOnly }) {
               <tr>
                 <th className="p-3">Código</th>
                 <th className="p-3">Tipo de documento</th>
+                <th className="p-3">Población objetivo</th>
                 <th className="p-3">Estado</th>
                 <th className="p-3">Creador Experto</th>
                 <th className="p-3">Revisor Pedagógico</th>
@@ -445,6 +491,11 @@ export default function ProjectDocumentsTab({ projectId, readOnly }) {
                       </Link>
                     </td>
                     <td className="p-3 text-xs">{d.document_types?.nombre || '—'}</td>
+                    <td className="p-3 text-xs">
+                      {d.poblaciones_objetivo
+                        ? `${d.poblaciones_objetivo.nombre} (${d.poblaciones_objetivo.edad_min}-${d.poblaciones_objetivo.edad_max})`
+                        : '—'}
+                    </td>
                     <td className="p-3"><StateBadge estado={d.estado} /></td>
                     <td className="p-3 text-xs">{d.creador ? `${d.creador.nombre} ${d.creador.apellido}` : '—'}</td>
                     <td className="p-3 text-xs">
@@ -481,7 +532,7 @@ export default function ProjectDocumentsTab({ projectId, readOnly }) {
                   </tr>
                   {editingId === d.id && editValues && (
                     <tr className="border-t border-deepViolet/10 bg-deepViolet/5">
-                      <td colSpan={7} className="p-4">
+                      <td colSpan={8} className="p-4">
                         <div className="grid sm:grid-cols-4 gap-3">
                           <div>
                             <label className="block text-xs font-semibold text-slate-500 mb-1">Estado</label>
@@ -493,6 +544,22 @@ export default function ProjectDocumentsTab({ projectId, readOnly }) {
                               {EDITABLE_STATES.map((s) => (
                                 <option key={s} value={s}>
                                   {s}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-semibold text-slate-500 mb-1">Población objetivo</label>
+                            <select
+                              required
+                              value={editValues.poblacion_objetivo_id}
+                              onChange={(e) => setEditValues({ ...editValues, poblacion_objetivo_id: e.target.value })}
+                              className="w-full border border-deepViolet/20 rounded-lg p-2 text-sm"
+                            >
+                              <option value="">Seleccionar...</option>
+                              {projectPoblaciones.map((p) => (
+                                <option key={p.id} value={p.id}>
+                                  {p.nombre} ({p.edad_min}-{p.edad_max} años)
                                 </option>
                               ))}
                             </select>
@@ -558,14 +625,14 @@ export default function ProjectDocumentsTab({ projectId, readOnly }) {
               ))}
               {documents.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="p-6 text-center text-slate-400">
+                  <td colSpan={8} className="p-6 text-center text-slate-400">
                     No hay documentos registrados en este proyecto.
                   </td>
                 </tr>
               )}
               {documents.length > 0 && filteredDocuments.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="p-6 text-center text-slate-400">
+                  <td colSpan={8} className="p-6 text-center text-slate-400">
                     Ningún documento coincide con el filtro.
                   </td>
                 </tr>

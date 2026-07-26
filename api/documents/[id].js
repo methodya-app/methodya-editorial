@@ -49,6 +49,7 @@ export default withCors(async (req, res) => {
     const admin = supabaseAdmin();
     const allowed = [
       'document_type_id',
+      'poblacion_objetivo_id',
       'creador_id',
       'revisor_pedagogico_id',
       'revisor_estilo_id',
@@ -63,11 +64,18 @@ export default withCors(async (req, res) => {
     const { data: before, error: beforeError } = await admin
       .from('documents')
       .select(
-        'estado, project_id, projects(asignacion_creador, asignacion_revisor_pedagogico, asignacion_revisor_estilo, criterio_carga)'
+        'estado, project_id, projects(asignacion_creador, asignacion_revisor_pedagogico, asignacion_revisor_estilo, criterio_carga, parametrizacion)'
       )
       .eq('id', id)
       .single();
     if (beforeError) throw new ApiError(404, 'Documento no encontrado');
+
+    if (updates.poblacion_objetivo_id !== undefined) {
+      const allowedPoblacionIds = before.projects?.parametrizacion?.poblacion_objetivo?.poblacion_ids || [];
+      if (!updates.poblacion_objetivo_id || !allowedPoblacionIds.includes(updates.poblacion_objetivo_id)) {
+        throw new ApiError(400, 'poblacion_objetivo_id debe ser una de las poblaciones configuradas para este proyecto');
+      }
+    }
 
     const { data, error } = await admin
       .from('documents')

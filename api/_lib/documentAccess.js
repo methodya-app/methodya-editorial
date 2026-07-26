@@ -14,7 +14,7 @@ export async function loadDocumentWithAccess(auth, documentId) {
     .select(
       '*, projects(id, estado, plantilla_texto_simulado, plantilla_tipo, plantilla_url, drive_folder_url, ' +
         'asignacion_creador, asignacion_revisor_pedagogico, asignacion_revisor_estilo, criterio_carga, ' +
-        'vaciado_formato)'
+        'vaciado_formato), poblaciones_objetivo(id, nombre, edad_min, edad_max, nivel_lector)'
     )
     .eq('id', documentId)
     .single();

@@ -67,6 +67,8 @@ export default function Layout() {
     '/admin/tipos-documento',
     '/admin/subformularios',
     '/admin/parrafos',
+    '/admin/poblaciones-objetivo',
+    '/admin/dotacion',
     '/admin/parametros',
   ].some((p) => location.pathname.startsWith(p));
 
@@ -98,6 +100,8 @@ export default function Layout() {
                 <NavLink to="/admin/tipos-documento" className={dropdownLinkClass}>Tipos de documento</NavLink>
                 <NavLink to="/admin/subformularios" className={dropdownLinkClass}>Subformularios</NavLink>
                 <NavLink to="/admin/parrafos" className={dropdownLinkClass}>Párrafos predefinidos</NavLink>
+                <NavLink to="/admin/poblaciones-objetivo" className={dropdownLinkClass}>Poblaciones Objetivo</NavLink>
+                <NavLink to="/admin/dotacion" className={dropdownLinkClass}>Dotación</NavLink>
                 <NavLink to="/admin/parametros" className={dropdownLinkClass}>Parámetros</NavLink>
               </NavDropdown>
             </>
