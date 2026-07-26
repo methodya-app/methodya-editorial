@@ -5,7 +5,7 @@ import { STAGE_ROLE, autoAssignIfNeeded } from '../../_lib/groupAssignment.js';
 
 const DOCUMENT_COLUMNS =
   'id, codigo, estado, form_id, document_type_id, poblacion_objetivo_id, creador_id, revisor_pedagogico_id, revisor_estilo_id, vaciado_at, created_at, updated_at,' +
-  'creador:creador_id(nombre, apellido, email),' +
+  'creador:creador_id(nombre, apellido, email, is_synthetic),' +
   'revisor_pedagogico:revisor_pedagogico_id(nombre, apellido, email),' +
   'revisor_estilo:revisor_estilo_id(nombre, apellido, email),' +
   'document_types(nombre),' +

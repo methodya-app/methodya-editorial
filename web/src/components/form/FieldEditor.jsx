@@ -9,7 +9,16 @@ const FIELD_TYPES = [
   { value: 'checkbox', label: 'Casillas de verificación' },
   { value: 'predefined_paragraph', label: 'Párrafo predefinido' },
   { value: 'subform', label: 'Sub-formulario' },
+  { value: 'poblacion_objetivo', label: 'Población objetivo (del proyecto)' },
+  { value: 'temas_focos', label: 'Temas y Focos (del proyecto)' },
+  { value: 'dotacion', label: 'Dotación (del proyecto)' },
 ];
+
+// Tipos cuyas opciones NO se digitan a mano: se toman en vivo de la
+// Parametrización del proyecto (población objetivo seleccionada, temas y
+// focos, dotación seleccionada), igual para todos los documentos de ese
+// proyecto que usen este formulario.
+const PROJECT_DRIVEN_TYPES = ['poblacion_objetivo', 'temas_focos', 'dotacion'];
 
 export default function FieldEditor({ field, onUpdate, onRemove, subformsLibrary = [], duplicateVariable = false }) {
   const [aiRule, setAiRule] = useState(field.validation?.description || '');
@@ -122,6 +131,17 @@ export default function FieldEditor({ field, onUpdate, onRemove, subformsLibrary
             }}
           />
         </div>
+      )}
+
+      {PROJECT_DRIVEN_TYPES.includes(field.type) && (
+        <p className="text-xs text-slate-500 bg-deepViolet/5 rounded-md p-2">
+          {field.type === 'poblacion_objetivo' &&
+            'Selección única. Las opciones se toman automáticamente de las poblaciones objetivo seleccionadas en Parametrización → Población objetivo de cada proyecto.'}
+          {field.type === 'temas_focos' &&
+            'Selección múltiple. Las opciones se toman automáticamente de los temas configurados en Parametrización → Temas y Focos de cada proyecto.'}
+          {field.type === 'dotacion' &&
+            'Selección múltiple. Las opciones se toman automáticamente de la dotación seleccionada en Parametrización → Dotación de cada proyecto.'}
+        </p>
       )}
 
       {field.type === 'predefined_paragraph' && (

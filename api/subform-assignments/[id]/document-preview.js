@@ -17,7 +17,7 @@ export default withCors(async (req, res) => {
   const admin = supabaseAdmin();
   const { data: document, error } = await admin
     .from('documents')
-    .select('id, codigo, estado, project_id')
+    .select('id, codigo, estado, project_id, projects(parametrizacion)')
     .eq('id', assignment.document_id)
     .single();
   if (error || !document) throw new ApiError(404, 'Documento no encontrado');
@@ -25,5 +25,28 @@ export default withCors(async (req, res) => {
   const docData = await db.collection('document_data').findOne({ document_id: assignment.document_id });
   const form = docData ? await db.collection('forms').findOne({ _id: toObjectId(docData.form_id) }) : null;
 
-  return res.status(200).json({ document, form, values: docData?.values || {} });
+  // Opciones dinámicas de los tipos de campo "Población objetivo" / "Temas
+  // y Focos" / "Dotación", igual que en la pantalla de ejecución del
+  // documento, para que esta vista de solo lectura no muestre ids crudos.
+  const parametrizacion = document.projects?.parametrizacion || {};
+  const allowedPoblacionIds = parametrizacion.poblacion_objetivo?.poblacion_ids || [];
+  const allowedDotacionIds = parametrizacion.dotacion?.referencia_ids || [];
+
+  const [{ data: poblacionesData }, { data: dotacionData }] = await Promise.all([
+    allowedPoblacionIds.length > 0
+      ? admin.from('poblaciones_objetivo').select('*').in('id', allowedPoblacionIds)
+      : Promise.resolve({ data: [] }),
+    allowedDotacionIds.length > 0
+      ? admin.from('dotacion_referencias').select('*, dotacion_tipos(nombre)').in('id', allowedDotacionIds)
+      : Promise.resolve({ data: [] }),
+  ]);
+
+  return res.status(200).json({
+    document,
+    form,
+    values: docData?.values || {},
+    project_poblaciones: poblacionesData || [],
+    project_temas: parametrizacion.temas_focos?.temas || [],
+    project_dotacion_referencias: dotacionData || [],
+  });
 });

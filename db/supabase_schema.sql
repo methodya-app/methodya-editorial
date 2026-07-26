@@ -385,6 +385,35 @@ create index if not exists idx_dotacion_referencias_tipo on public.dotacion_refe
 -- ---------------------------------------------------------------------
 alter table public.documents add column if not exists poblacion_objetivo_id uuid references public.poblaciones_objetivo(id);
 
+-- ---------------------------------------------------------------------
+-- 17. AGENTE CREADOR SINTÉTICO
+--    Un Creador Experto puede ser una persona real o un agente operado por
+--    IA que diligencia formularios reutilizando el mismo flujo editorial
+--    (no hay un flujo paralelo). persona_prompt es SOLO la voz/expertise
+--    propia del agente (ej. "profesora de biología, tono directo, le
+--    gusta usar analogías con la vida cotidiana"): el contexto del
+--    proyecto y de la población objetivo del documento NO va aquí, viene
+--    de buildContextText (api/_lib/parametrizacion.js).
+-- ---------------------------------------------------------------------
+alter table public.profiles add column if not exists is_synthetic boolean not null default false;
+alter table public.profiles add column if not exists persona_prompt text;
+alter table public.profiles add column if not exists persona_model text;
+
+-- Trazabilidad de cada intento de generación de contenido por IA sobre un
+-- documento (hasta 3 por corrida de api/documents/[id]/generate.js).
+create table if not exists public.document_generations (
+  id uuid primary key default gen_random_uuid(),
+  document_id uuid not null references public.documents(id) on delete cascade,
+  agent_id uuid references public.profiles(id),
+  intento int not null,
+  valido boolean not null default false,
+  errores jsonb,
+  modelo text,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_document_generations_document on public.document_generations(document_id);
+
 -- =====================================================================
 -- Nota sobre RLS: en esta beta el acceso a datos se realiza EXCLUSIVAMENTE
 -- a través de las funciones serverless de Vercel usando la Service Role Key
@@ -408,6 +437,7 @@ alter table public.project_parametrizacion_historial enable row level security;
 alter table public.poblaciones_objetivo enable row level security;
 alter table public.dotacion_tipos enable row level security;
 alter table public.dotacion_referencias enable row level security;
+alter table public.document_generations enable row level security;
 -- (Sin policies = sin acceso vía anon key; solo la Service Role Key del backend puede operar)
 
 -- Nota: en versiones recientes del CLI de Supabase, las tablas nuevas ya NO se

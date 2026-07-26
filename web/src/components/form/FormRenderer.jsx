@@ -31,6 +31,9 @@ export default function FormRenderer({
   canReleaseToMultimedia = false,
   subformReleaseStatus = {},
   onReleaseInstance,
+  projectPoblaciones = [],
+  projectTemas = [],
+  projectDotacionReferencias = [],
 }) {
   const setValue = (variable, val) => onChange({ ...values, [variable]: val });
 
@@ -69,6 +72,9 @@ export default function FormRenderer({
                 canReleaseToMultimedia={canReleaseToMultimedia}
                 subformReleaseStatus={subformReleaseStatus}
                 onReleaseInstance={onReleaseInstance}
+                projectPoblaciones={projectPoblaciones}
+                projectTemas={projectTemas}
+                projectDotacionReferencias={projectDotacionReferencias}
               />
             ))}
             {section.fields.length === 0 && (
@@ -99,6 +105,9 @@ function FieldRenderer({
   canReleaseToMultimedia,
   subformReleaseStatus,
   onReleaseInstance,
+  projectPoblaciones,
+  projectTemas,
+  projectDotacionReferencias,
 }) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [spellIssues, setSpellIssues] = useState(null);
@@ -146,6 +155,9 @@ function FieldRenderer({
         canReleaseToMultimedia={canReleaseToMultimedia}
         subformReleaseStatus={subformReleaseStatus}
         onReleaseInstance={onReleaseInstance}
+        projectPoblaciones={projectPoblaciones}
+        projectTemas={projectTemas}
+        projectDotacionReferencias={projectDotacionReferencias}
       />
 
       {error?.length > 0 && (
@@ -235,6 +247,9 @@ export function FieldInput({
   canReleaseToMultimedia,
   subformReleaseStatus,
   onReleaseInstance,
+  projectPoblaciones = [],
+  projectTemas = [],
+  projectDotacionReferencias = [],
 }) {
   const base =
     'w-full border border-deepViolet/20 rounded-lg p-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-cognitiveTeal disabled:bg-slate-100 disabled:text-slate-500';
@@ -350,7 +365,100 @@ export function FieldInput({
           canReleaseToMultimedia={canReleaseToMultimedia}
           subformReleaseStatus={subformReleaseStatus}
           onReleaseInstance={onReleaseInstance}
+          projectPoblaciones={projectPoblaciones}
+          projectTemas={projectTemas}
+          projectDotacionReferencias={projectDotacionReferencias}
         />
+      );
+
+    // Selección única entre las poblaciones objetivo YA seleccionadas en la
+    // Parametrización del proyecto (no todo el catálogo global): mismo
+    // patrón que "select", pero las opciones vienen del proyecto, no se
+    // escriben a mano al diseñar el formulario.
+    case 'poblacion_objetivo':
+      return (
+        <select
+          className={base}
+          value={value || ''}
+          disabled={readOnly}
+          onChange={(e) => onChange(e.target.value)}
+          onBlur={onBlur}
+        >
+          <option value="">{field.placeholder || 'Seleccione una opción'}</option>
+          {projectPoblaciones.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.nombre} ({p.edad_min}-{p.edad_max} años)
+            </option>
+          ))}
+          {projectPoblaciones.length === 0 && (
+            <option value="" disabled>
+              El proyecto no tiene poblaciones objetivo configuradas
+            </option>
+          )}
+        </select>
+      );
+
+    // Selección múltiple entre los temas configurados en Parametrización →
+    // Temas y Focos del proyecto (mismo patrón que "checkbox", opciones
+    // dinámicas por proyecto).
+    case 'temas_focos':
+      return (
+        <div className="flex flex-wrap gap-3">
+          {projectTemas.map((tema) => {
+            const checked = Array.isArray(value) && value.includes(tema);
+            return (
+              <label key={tema} className="flex items-center gap-1.5 text-sm">
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  disabled={readOnly}
+                  onChange={(e) => {
+                    const cur = Array.isArray(value) ? value : [];
+                    onChange(e.target.checked ? [...cur, tema] : cur.filter((v) => v !== tema));
+                  }}
+                />
+                {tema}
+              </label>
+            );
+          })}
+          {projectTemas.length === 0 && (
+            <p className="text-xs text-slate-400">
+              El proyecto no tiene temas y focos configurados (Parametrización → Temas y Focos).
+            </p>
+          )}
+        </div>
+      );
+
+    // Selección múltiple entre la dotación seleccionada en Parametrización →
+    // Dotación del proyecto (mismo patrón que "checkbox", opciones dinámicas
+    // por proyecto).
+    case 'dotacion':
+      return (
+        <div className="flex flex-wrap gap-3">
+          {projectDotacionReferencias.map((ref) => {
+            const checked = Array.isArray(value) && value.includes(ref.id);
+            return (
+              <label key={ref.id} className="flex items-center gap-1.5 text-sm">
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  disabled={readOnly}
+                  onChange={(e) => {
+                    const cur = Array.isArray(value) ? value : [];
+                    onChange(e.target.checked ? [...cur, ref.id] : cur.filter((v) => v !== ref.id));
+                  }}
+                />
+                {ref.dotacion_tipos?.nombre ? `${ref.dotacion_tipos.nombre} — ` : ''}
+                {ref.nombre} ({ref.referencia})
+              </label>
+            );
+          })}
+          {projectDotacionReferencias.length === 0 && (
+            <p className="text-xs text-slate-400">
+              El proyecto no tiene dotación configurada (Parametrización → Dotación).
+            </p>
+          )}
+        </div>
       );
 
     default:
@@ -378,6 +486,9 @@ function SubformField({
   canReleaseToMultimedia,
   subformReleaseStatus,
   onReleaseInstance,
+  projectPoblaciones,
+  projectTemas,
+  projectDotacionReferencias,
 }) {
   const allowed = (subformsLibrary || []).filter((sf) => (field.subform_ids || []).includes(sf._id));
   const current = value && typeof value === 'object' ? value : { subform_id: allowed[0]?._id || '', instances: [] };
@@ -466,6 +577,9 @@ function SubformField({
                 readOnly={readOnly}
                 subformsLibrary={[]}
                 openPicker={() => {}}
+                projectPoblaciones={projectPoblaciones}
+                projectTemas={projectTemas}
+                projectDotacionReferencias={projectDotacionReferencias}
               />
             </div>
           ))}

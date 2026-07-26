@@ -235,3 +235,121 @@ export async function extractDotacionSpecs({ base64Data, mimeType }) {
     source: 'gemini',
   };
 }
+
+// Genera los valores de un formulario (todos los campos excepto los de tipo
+// 'subform', que maneja el equipo multimedia, fuera de alcance) en la
+// voz/expertise de un agente sintético (Creador Experto operado por IA),
+// usando el contexto real de parametrización ya armado por buildContextText
+// (api/_lib/parametrizacion.js). Si `previousErrors` viene informado, le
+// pide al modelo corregir esos campos puntuales sin repetir el error. Sin
+// heurística de respaldo: sin clave de Gemini no es posible generar
+// contenido real, nunca se produce contenido falso.
+export async function generateDocumentValues({
+  form,
+  personaPrompt,
+  contextText,
+  previousErrors,
+  model: modelOverride,
+  projectPoblaciones = [],
+  projectTemas = [],
+  projectDotacionReferencias = [],
+}) {
+  const apiKey = await resolveGeminiKey();
+  const model = modelOverride || process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+
+  if (!apiKey) {
+    throw new ApiError(
+      422,
+      'No hay una clave de Gemini configurada en Parámetros del servidor; no es posible generar contenido automáticamente.'
+    );
+  }
+
+  const fields = (form?.sections || []).flatMap((s) => s.fields || []).filter((f) => f.type !== 'subform');
+
+  // Los tipos "poblacion_objetivo" / "temas_focos" / "dotacion" no traen sus
+  // opciones en field.options (se toman en vivo de la Parametrización del
+  // proyecto), así que se describen aparte con el mismo id/texto exacto que
+  // se debe guardar como valor.
+  const fieldsSchema = fields
+    .map((f) => {
+      const parts = [`- "${f.variable}" (${f.label}): tipo ${f.type}`];
+      if (f.required) parts.push('OBLIGATORIO');
+      if (f.type === 'poblacion_objetivo') {
+        const opts = projectPoblaciones.map((p) => `"${p.id}" = ${p.nombre}`).join(' | ');
+        parts.push(`selección única, valor = el id exacto entre comillas de UNA de estas opciones: ${opts || '(el proyecto no tiene poblaciones configuradas)'}`);
+      } else if (f.type === 'temas_focos') {
+        const opts = projectTemas.join(' | ');
+        parts.push(`selección múltiple, valor = array JSON con 0 o más de estos textos EXACTOS: ${opts || '(el proyecto no tiene temas configurados)'}`);
+      } else if (f.type === 'dotacion') {
+        const opts = projectDotacionReferencias.map((r) => `"${r.id}" = ${r.nombre} (${r.referencia})`).join(' | ');
+        parts.push(`selección múltiple, valor = array JSON con 0 o más ids EXACTOS entre comillas de estas opciones: ${opts || '(el proyecto no tiene dotación configurada)'}`);
+      } else if (f.options?.length) {
+        parts.push(`opciones válidas: ${f.options.join(' | ')}`);
+      }
+      if (f.placeholder) parts.push(`ejemplo/placeholder: ${f.placeholder}`);
+      if (f.validation?.enabled && f.validation?.description) {
+        parts.push(`regla de validación: ${f.validation.description}`);
+      }
+      return parts.join(', ');
+    })
+    .join('\n');
+
+  let errorsSection = '';
+  if (previousErrors && Object.keys(previousErrors).length > 0) {
+    const lines = Object.entries(previousErrors).map(([variable, errs]) => {
+      const label = fields.find((f) => f.variable === variable)?.label || variable;
+      const errText = Array.isArray(errs) ? errs.join('; ') : String(errs);
+      return `- ${label} ("${variable}"): ${errText}`;
+    });
+    errorsSection =
+      '\n\nEl intento anterior tuvo estos errores de validación; corrígelos campo por campo, sin repetirlos:\n' +
+      lines.join('\n');
+  }
+
+  const promptText =
+    'Eres el Creador Experto (operado por IA) de la plataforma editorial educativa METHODYA. Tu tarea es ' +
+    'diligenciar un formulario educativo exactamente como lo haría una persona real en tu rol, con tu propia ' +
+    'voz y expertise.\n\n' +
+    (personaPrompt ? `TU VOZ/EXPERTISE: ${personaPrompt}\n\n` : '') +
+    (contextText ? `CONTEXTO DEL PROYECTO Y DEL DOCUMENTO:\n${contextText}\n\n` : '') +
+    `CAMPOS DEL FORMULARIO A DILIGENCIAR:\n${fieldsSchema}` +
+    errorsSection +
+    '\n\nResponde ÚNICAMENTE un JSON válido (sin markdown, sin texto extra) con una clave por cada variable ' +
+    'del formulario y su valor generado. Para campos "select" o "checkbox" usa exactamente una (o, en ' +
+    'checkbox, varias) de las opciones válidas listadas. Para "poblacion_objetivo" y "dotacion" usa ' +
+    'exactamente el/los id(s) entre comillas indicados (nunca el nombre). Para "temas_focos" usa exactamente ' +
+    'el/los texto(s) indicados. Para "number" usa un valor numérico. Respeta las reglas de validación descritas.';
+
+  const resp = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: promptText }] }],
+        generationConfig: { responseMimeType: 'application/json' },
+      }),
+    }
+  );
+
+  if (!resp.ok) {
+    const errText = await resp.text().catch(() => '');
+    throw new ApiError(502, `Gemini respondió ${resp.status}: ${errText.slice(0, 200)}`);
+  }
+
+  const result = await resp.json();
+  const rawText = result?.candidates?.[0]?.content?.parts?.[0]?.text || '';
+  const cleanJson = rawText.replace(/```json|```/g, '').trim();
+
+  let values;
+  try {
+    values = JSON.parse(cleanJson);
+  } catch {
+    throw new ApiError(502, 'Gemini no devolvió un JSON válido para este formulario');
+  }
+  if (!values || typeof values !== 'object' || Array.isArray(values)) {
+    throw new ApiError(502, 'Gemini no devolvió un objeto de valores utilizable');
+  }
+
+  return { values, model, source: 'gemini' };
+}

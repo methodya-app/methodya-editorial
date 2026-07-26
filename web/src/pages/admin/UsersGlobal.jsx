@@ -9,7 +9,16 @@ export default function UsersGlobal() {
   const [trashedUsers, setTrashedUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ nombre: '', apellido: '', email: '', password: '', is_admin: false });
+  const [form, setForm] = useState({
+    nombre: '',
+    apellido: '',
+    email: '',
+    password: '',
+    is_admin: false,
+    is_synthetic: false,
+    persona_prompt: '',
+    persona_model: '',
+  });
 
   const [editingId, setEditingId] = useState(null);
   const [editValues, setEditValues] = useState(null);
@@ -30,7 +39,16 @@ export default function UsersGlobal() {
     e.preventDefault();
     try {
       await api.post('/users', form);
-      setForm({ nombre: '', apellido: '', email: '', password: '', is_admin: false });
+      setForm({
+        nombre: '',
+        apellido: '',
+        email: '',
+        password: '',
+        is_admin: false,
+        is_synthetic: false,
+        persona_prompt: '',
+        persona_model: '',
+      });
       setShowForm(false);
       load();
     } catch (err) {
@@ -139,22 +157,26 @@ export default function UsersGlobal() {
             onChange={(e) => setForm({ ...form, apellido: e.target.value })}
             className="border border-deepViolet/20 rounded-lg p-2 text-sm"
           />
-          <input
-            required
-            type="email"
-            placeholder="Correo"
-            value={form.email}
-            onChange={(e) => setForm({ ...form, email: e.target.value })}
-            className="border border-deepViolet/20 rounded-lg p-2 text-sm"
-          />
-          <input
-            required
-            type="password"
-            placeholder="Clave temporal"
-            value={form.password}
-            onChange={(e) => setForm({ ...form, password: e.target.value })}
-            className="border border-deepViolet/20 rounded-lg p-2 text-sm"
-          />
+          {!form.is_synthetic && (
+            <>
+              <input
+                required
+                type="email"
+                placeholder="Correo"
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                className="border border-deepViolet/20 rounded-lg p-2 text-sm"
+              />
+              <input
+                required
+                type="password"
+                placeholder="Clave temporal"
+                value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
+                className="border border-deepViolet/20 rounded-lg p-2 text-sm"
+              />
+            </>
+          )}
           <label className="flex items-center gap-2 text-sm">
             <input
               type="checkbox"
@@ -163,6 +185,40 @@ export default function UsersGlobal() {
             />
             Es Administrador
           </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={form.is_synthetic}
+              onChange={(e) => setForm({ ...form, is_synthetic: e.target.checked })}
+            />
+            Es agente sintético (IA)
+          </label>
+          {form.is_synthetic && (
+            <>
+              <div className="sm:col-span-2">
+                <label className="block text-xs font-semibold text-slate-500 mb-1">
+                  Persona / instrucciones del agente
+                </label>
+                <textarea
+                  required
+                  rows={3}
+                  placeholder="Ej: profesora de biología, tono directo, le gusta usar analogías con la vida cotidiana"
+                  value={form.persona_prompt}
+                  onChange={(e) => setForm({ ...form, persona_prompt: e.target.value })}
+                  className="w-full border border-deepViolet/20 rounded-lg p-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 mb-1">Modelo (opcional)</label>
+                <input
+                  placeholder="Ej: gemini-2.5-flash (vacío = el modelo por defecto)"
+                  value={form.persona_model}
+                  onChange={(e) => setForm({ ...form, persona_model: e.target.value })}
+                  className="w-full border border-deepViolet/20 rounded-lg p-2 text-sm"
+                />
+              </div>
+            </>
+          )}
           <div className="sm:col-span-2">
             <button type="submit" className="px-4 py-2 rounded-lg bg-deepViolet text-white text-sm font-semibold">
               Crear usuario
@@ -193,6 +249,11 @@ export default function UsersGlobal() {
                     <tr className="border-t border-deepViolet/10">
                       <td className="p-3">
                         {u.nombre} {u.apellido}
+                        {u.is_synthetic && (
+                          <span className="ml-2 text-[10px] font-semibold text-cognitiveTeal bg-cognitiveTeal-light px-1.5 py-0.5 rounded-full whitespace-nowrap">
+                            ✨ Agente IA
+                          </span>
+                        )}
                       </td>
                       <td className="p-3 text-slate-500">{u.email}</td>
                       <td className="p-3">{u.is_admin ? 'Sí' : 'No'}</td>

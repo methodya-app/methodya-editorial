@@ -45,6 +45,7 @@ export default function ProjectDocumentsTab({ projectId, readOnly }) {
   const [restoringId, setRestoringId] = useState(null);
   const [restoreEstado, setRestoreEstado] = useState('Pendiente');
   const [vaciandoId, setVaciandoId] = useState(null);
+  const [generandoId, setGenerandoId] = useState(null);
 
   const [filterCodigo, setFilterCodigo] = useState('');
   const [filterTipo, setFilterTipo] = useState('');
@@ -137,6 +138,27 @@ export default function ProjectDocumentsTab({ projectId, readOnly }) {
       alert(err.message);
     } finally {
       setVaciandoId(null);
+    }
+  };
+
+  const generar = async (id) => {
+    if (generandoId) return; // ya hay una generación en curso, ignora el doble clic
+    setGenerandoId(id);
+    try {
+      const result = await api.post(`/documents/${id}/generate`);
+      if (result.needs_human_review) {
+        alert(
+          'El agente generó un borrador pero no logró pasar la validación tras varios intentos. ' +
+            'Quedó guardado como borrador: revísalo y corrígelo manualmente.'
+        );
+      } else {
+        alert('Contenido generado y validado ✓. Puedes revisarlo en el detalle del documento.');
+      }
+      load();
+    } catch (err) {
+      alert('No se pudo generar: ' + err.message);
+    } finally {
+      setGenerandoId(null);
     }
   };
 
@@ -513,6 +535,15 @@ export default function ProjectDocumentsTab({ projectId, readOnly }) {
                           >
                             {editingId === d.id ? 'Cancelar' : 'Editar'}
                           </button>
+                          {d.creador?.is_synthetic && (
+                            <button
+                              onClick={() => generar(d.id)}
+                              disabled={!!generandoId}
+                              className="text-xs font-semibold text-cognitiveTeal hover:underline mr-3 disabled:opacity-50"
+                            >
+                              ✨ Generar con IA
+                            </button>
+                          )}
                           <button
                             onClick={() => vaciar(d.id)}
                             disabled={!!vaciandoId}
@@ -714,6 +745,10 @@ export default function ProjectDocumentsTab({ projectId, readOnly }) {
       )}
 
       <ProcessingModal open={!!vaciandoId} message="Vaciando documento... esto puede tardar unos segundos." />
+      <ProcessingModal
+        open={!!generandoId}
+        message="El agente sintético está generando el contenido... esto puede tardar hasta un minuto."
+      />
     </div>
   );
 }
