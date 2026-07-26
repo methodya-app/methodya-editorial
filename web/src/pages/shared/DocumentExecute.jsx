@@ -43,6 +43,9 @@ export default function DocumentExecute() {
   const [paragraphsLibrary, setParagraphsLibrary] = useState([]);
   const [projectUsers, setProjectUsers] = useState([]);
   const [globalValidations, setGlobalValidations] = useState([]);
+  const [projectPoblaciones, setProjectPoblaciones] = useState([]);
+  const [projectTemas, setProjectTemas] = useState([]);
+  const [projectDotacionReferencias, setProjectDotacionReferencias] = useState([]);
   const [languagetoolConfigured, setLanguagetoolConfigured] = useState(false);
   const [spellcheckSubmitMode, setSpellcheckSubmitMode] = useState('off');
   const [saving, setSaving] = useState(false);
@@ -54,19 +57,34 @@ export default function DocumentExecute() {
     const doc = await api.get(`/documents/${id}`);
     setData(doc);
     setValues(doc.values || {});
-    const [subforms, paragraphs, users, validations, publicSettings] = await Promise.all([
-      api.get('/subforms'),
-      api.get('/paragraphs'),
-      api.get(`/projects/${doc.document.project_id}/users`),
-      api.get(`/projects/${doc.document.project_id}/validations`),
-      api.get('/settings/public'),
-    ]);
+    const [subforms, paragraphs, users, validations, publicSettings, poblaciones, dotacionReferencias] =
+      await Promise.all([
+        api.get('/subforms'),
+        api.get('/paragraphs'),
+        api.get(`/projects/${doc.document.project_id}/users`),
+        api.get(`/projects/${doc.document.project_id}/validations`),
+        api.get('/settings/public'),
+        api.get('/poblaciones-objetivo'),
+        api.get('/dotacion-referencias'),
+      ]);
     setSubformsLibrary(subforms.subforms);
     setParagraphsLibrary(paragraphs.paragraphs);
     setProjectUsers(users.project_users);
     setGlobalValidations(validations.validations);
     setLanguagetoolConfigured(publicSettings.languagetool_configured);
     setSpellcheckSubmitMode(publicSettings.spellcheck_submit_mode || 'off');
+
+    // Opciones dinámicas de los tipos de campo "Población objetivo" / "Temas
+    // y Focos" / "Dotación": solo lo que este proyecto tiene seleccionado en
+    // su Parametrización (no todo el catálogo global).
+    const parametrizacion = doc.document.projects?.parametrizacion || {};
+    const allowedPoblacionIds = parametrizacion.poblacion_objetivo?.poblacion_ids || [];
+    const allowedDotacionIds = parametrizacion.dotacion?.referencia_ids || [];
+    setProjectPoblaciones(poblaciones.poblaciones_objetivo.filter((p) => allowedPoblacionIds.includes(p.id)));
+    setProjectTemas(parametrizacion.temas_focos?.temas || []);
+    setProjectDotacionReferencias(
+      dotacionReferencias.dotacion_referencias.filter((r) => allowedDotacionIds.includes(r.id))
+    );
   }, [id]);
 
   useEffect(() => {
@@ -271,6 +289,11 @@ export default function DocumentExecute() {
         <div className="flex items-center gap-3 mt-1">
           <h2 className="font-display font-bold text-xl text-deepViolet">{document.codigo}</h2>
           <StateBadge estado={document.estado} />
+          {document.creador?.is_synthetic && (
+            <span className="text-xs font-semibold text-cognitiveTeal bg-cognitiveTeal-light px-2 py-0.5 rounded-full">
+              ✨ Generado por IA
+            </span>
+          )}
         </div>
         <p className="text-sm text-slate-500">{form?.titulo}</p>
       </div>
@@ -319,6 +342,9 @@ export default function DocumentExecute() {
           canReleaseToMultimedia={canReleaseToMultimedia}
           subformReleaseStatus={data.subform_release_status}
           onReleaseInstance={(instanceId) => releaseSubforms([instanceId])}
+          projectPoblaciones={projectPoblaciones}
+          projectTemas={projectTemas}
+          projectDotacionReferencias={projectDotacionReferencias}
         />
       )}
 

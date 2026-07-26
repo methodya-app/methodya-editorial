@@ -45,6 +45,9 @@ export default function DocumentPreviewModal({ open, onClose, assignmentId }) {
               onChange={() => {}}
               readOnly
               subformsLibrary={subformsLibrary}
+              projectPoblaciones={data.project_poblaciones}
+              projectTemas={data.project_temas}
+              projectDotacionReferencias={data.project_dotacion_referencias}
             />
           )}
         </div>
