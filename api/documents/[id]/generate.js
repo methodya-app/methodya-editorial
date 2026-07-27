@@ -9,6 +9,12 @@ import { generateDocumentValues } from '../../_lib/gemini.js';
 
 const MAX_ATTEMPTS = 3;
 
+// Hasta 3 llamadas reales a Gemini en serie no caben holgadas en el límite
+// general de 30s (ver vercel.json). Se configura aquí (en vez de con un
+// patrón glob en vercel.json) porque Vercel no matchea de forma confiable
+// patrones "functions" contra rutas dinámicas con corchetes como [id].
+export const config = { maxDuration: 60, memory: 1024 };
+
 // Agente Creador Sintético: genera el contenido de un documento con IA,
 // reutilizando el mismo flujo editorial que un Creador Experto humano (no
 // hay un flujo paralelo). Solo el Administrador puede dispararlo.
