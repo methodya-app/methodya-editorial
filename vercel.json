@@ -5,7 +5,7 @@
       "memory": 1024,
       "maxDuration": 30
     },
-    "api/documents/[id]/generate.js": {
+    "api/documents/*/generate.js": {
       "memory": 1024,
       "maxDuration": 60
     }
