@@ -5,7 +5,6 @@
   "type": "module",
   "description": "Backend serverless (Vercel Functions) de METHODYA Beta",
   "scripts": {
-    "build": "echo 'Proyecto sin paso de build: solo funciones serverless en /api'",
     "dev": "node --watch-path=./api --watch-path=./dev-server.js dev-server.js",
     "seed:local": "node scripts/seed-local.mjs"
   },
