@@ -12,7 +12,7 @@ validaciones globales por proyecto, cambios masivos y un motor de
 ## Arquitectura
 
 ```
-methodya-beta/
+methodya-editorial/
 ├── api/             Backend: funciones serverless de Vercel (Node, ESM)
 ├── web/             Frontend: React + Vite + Tailwind, se despliega en GitHub Pages
 ├── db/              Esquema SQL de Supabase + esquema de colecciones de MongoDB
@@ -208,7 +208,7 @@ Supabase Cloud y apuntar `MONGODB_URI` a un clúster de Atlas — el código de
    `MONGODB_URI`, `MONGODB_DB`, `GEMINI_API_KEY`, `GEMINI_MODEL`,
    `ALLOWED_ORIGIN` (la URL de tu GitHub Pages, ver paso 5).
 6. Despliega. Anota la URL resultante, ej.
-   `https://methodya-beta-api.vercel.app`.
+   `https://methodya-editorial-api.vercel.app`.
 
 ### 5. Desplegar el frontend en GitHub Pages
 
