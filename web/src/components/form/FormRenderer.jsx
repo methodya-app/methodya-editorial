@@ -37,6 +37,32 @@ export default function FormRenderer({
 }) {
   const setValue = (variable, val) => onChange({ ...values, [variable]: val });
 
+  // Para un campo "subform" con un tipo ya elegido, calcula si ya se llegó
+  // al máximo configurado en form.limites_subformularios (alcance "seccion"
+  // solo cuenta instancias de esta sección; "formulario" cuenta todas). Solo
+  // UX inmediata (deshabilita "+ Agregar"); el backend es la fuente de
+  // verdad al guardar (ver validateSubformLimits en api/_lib/validation.js).
+  const getSubformLimitStatus = (field, sectionId) => {
+    const rules = form.limites_subformularios || [];
+    if (rules.length === 0) return null;
+    const subformId = values[field.variable]?.subform_id;
+    if (!subformId) return null;
+    const rule = rules.find((r) => r.subform_id === subformId);
+    if (!rule) return null;
+
+    let total = 0;
+    for (const section of form.sections || []) {
+      if (rule.alcance === 'seccion' && section.id !== sectionId) continue;
+      for (const f of section.fields || []) {
+        if (f.type !== 'subform') continue;
+        const v = values[f.variable];
+        if (v?.subform_id === subformId) total += (v.instances || []).length;
+      }
+    }
+    const maximo = Number(rule.maximo);
+    return { maximo, total, atMax: total >= maximo, alcance: rule.alcance, nombre: rule.subform_nombre };
+  };
+
   const handleBlur = (field) => {
     if (!onErrorsChange) return;
     const fieldErrors = validateFieldClient(field, values[field.variable], globalValidations);
@@ -75,6 +101,7 @@ export default function FormRenderer({
                 projectPoblaciones={projectPoblaciones}
                 projectTemas={projectTemas}
                 projectDotacionReferencias={projectDotacionReferencias}
+                subformLimitStatus={field.type === 'subform' ? getSubformLimitStatus(field, section.id) : null}
               />
             ))}
             {section.fields.length === 0 && (
@@ -108,6 +135,7 @@ function FieldRenderer({
   projectPoblaciones,
   projectTemas,
   projectDotacionReferencias,
+  subformLimitStatus,
 }) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [spellIssues, setSpellIssues] = useState(null);
@@ -161,6 +189,7 @@ function FieldRenderer({
         projectPoblaciones={projectPoblaciones}
         projectTemas={projectTemas}
         projectDotacionReferencias={projectDotacionReferencias}
+        subformLimitStatus={subformLimitStatus}
       />
 
       {error?.length > 0 && (
@@ -253,6 +282,7 @@ export function FieldInput({
   projectPoblaciones = [],
   projectTemas = [],
   projectDotacionReferencias = [],
+  subformLimitStatus,
 }) {
   const base =
     'w-full border border-deepViolet/20 rounded-lg p-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-cognitiveTeal disabled:bg-slate-100 disabled:text-slate-500';
@@ -378,6 +408,7 @@ export function FieldInput({
           projectPoblaciones={projectPoblaciones}
           projectTemas={projectTemas}
           projectDotacionReferencias={projectDotacionReferencias}
+          limitStatus={subformLimitStatus}
         />
       );
 
@@ -499,6 +530,7 @@ function SubformField({
   projectPoblaciones,
   projectTemas,
   projectDotacionReferencias,
+  limitStatus,
 }) {
   const allowed = (subformsLibrary || []).filter((sf) => (field.subform_ids || []).includes(sf._id));
   const current = value && typeof value === 'object' ? value : { subform_id: allowed[0]?._id || '', instances: [] };
@@ -601,13 +633,22 @@ function SubformField({
       })}
 
       {!readOnly && (field.allow_multiple_instances || (current.instances || []).length === 0) && (
-        <button
-          type="button"
-          onClick={addInstance}
-          className="text-xs font-semibold text-cognitiveTeal hover:underline"
-        >
-          + Agregar {selectedSubform?.nombre || 'instancia'}
-        </button>
+        <>
+          <button
+            type="button"
+            onClick={addInstance}
+            disabled={limitStatus?.atMax}
+            className="text-xs font-semibold text-cognitiveTeal hover:underline disabled:opacity-40 disabled:cursor-not-allowed disabled:no-underline"
+          >
+            + Agregar {selectedSubform?.nombre || 'instancia'}
+          </button>
+          {limitStatus?.atMax && (
+            <p className="text-xs text-warmAmber-hover">
+              Se alcanzó el máximo de {limitStatus.maximo} instancias de "{limitStatus.nombre}"
+              {limitStatus.alcance === 'seccion' ? ' en esta sección.' : ' en todo el formulario.'}
+            </p>
+          )}
+        </>
       )}
     </div>
   );

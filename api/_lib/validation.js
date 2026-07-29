@@ -122,6 +122,78 @@ export function findInvalidTableFields(fields) {
   });
 }
 
+// Reglas de límite de instancias de subformulario por tipo, definidas a
+// nivel de TODO el formulario (ver FormBuilder.jsx: "Límites de
+// subformularios"), no por campo — porque el mismo tipo de subformulario
+// (ej: "Video") puede usarse desde más de un campo/sección, y el límite debe
+// contar todas las instancias juntas dentro de su alcance.
+export function findInvalidSubformLimits(limites) {
+  return (limites || []).filter((l) => !l.subform_id || !l.maximo || Number(l.maximo) < 1);
+}
+
+// Cuenta las instancias de subformulario por tipo, agrupadas por campo y
+// sección, y las compara contra cada regla de `form.limites_subformularios`.
+// Alcance "formulario" = suma en todo el formulario; "seccion" = cada
+// sección se evalúa por separado contra el mismo máximo. Los errores se
+// asocian a cada campo que aporta instancias del tipo que se pasó del
+// límite, para que se vean justo donde se están agregando.
+export function validateSubformLimits(form, values) {
+  const rules = form?.limites_subformularios || [];
+  if (rules.length === 0) return {};
+
+  const entries = [];
+  for (const section of form.sections || []) {
+    for (const field of section.fields || []) {
+      if (field.type !== 'subform') continue;
+      const fv = values?.[field.variable];
+      if (!fv?.subform_id) continue;
+      entries.push({
+        sectionId: section.id,
+        variable: field.variable,
+        subformId: fv.subform_id,
+        count: Array.isArray(fv.instances) ? fv.instances.length : 0,
+      });
+    }
+  }
+
+  const errors = {};
+  const addError = (variable, message) => {
+    errors[variable] = errors[variable] || [];
+    errors[variable].push(message);
+  };
+
+  for (const rule of rules) {
+    const matching = entries.filter((e) => e.subformId === rule.subform_id);
+    if (matching.length === 0) continue;
+    const nombre = rule.subform_nombre || 'este subformulario';
+    const maximo = Number(rule.maximo);
+
+    if (rule.alcance === 'seccion') {
+      const bySection = new Map();
+      for (const e of matching) {
+        bySection.set(e.sectionId, [...(bySection.get(e.sectionId) || []), e]);
+      }
+      for (const group of bySection.values()) {
+        const total = group.reduce((sum, e) => sum + e.count, 0);
+        if (total > maximo) {
+          group.forEach((e) =>
+            addError(e.variable, `Máximo ${maximo} instancias de "${nombre}" por sección (hay ${total} en esta sección).`)
+          );
+        }
+      }
+    } else {
+      const total = matching.reduce((sum, e) => sum + e.count, 0);
+      if (total > maximo) {
+        matching.forEach((e) =>
+          addError(e.variable, `Máximo ${maximo} instancias de "${nombre}" en todo el formulario (hay ${total}).`)
+        );
+      }
+    }
+  }
+
+  return errors;
+}
+
 // El nombre de variable ({{variable}}) identifica el campo dentro de los
 // valores diligenciados y de la plantilla de vaciamiento: no puede repetirse
 // dentro del mismo formulario (o subformulario).
