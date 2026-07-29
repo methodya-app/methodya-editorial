@@ -5,6 +5,8 @@ import {
   findFieldsMissingCustomMessage,
   findDuplicateVariables,
   findFieldsMissingInstrucciones,
+  findInvalidTableFields,
+  findTableColumnsMissingCustomMessage,
 } from '../_lib/validation.js';
 
 export default withCors(async (req, res) => {
@@ -37,6 +39,13 @@ export default withCors(async (req, res) => {
           `Falta el mensaje de error personalizado en: ${missing.map((f) => f.label).join(', ')}`
         );
       }
+      const missingColumnMessage = findTableColumnsMissingCustomMessage(allFields);
+      if (missingColumnMessage.length > 0) {
+        throw new ApiError(
+          422,
+          `Falta el mensaje de error personalizado en una columna de: ${missingColumnMessage.map((f) => f.label).join(', ')}`
+        );
+      }
       const duplicates = findDuplicateVariables(allFields);
       if (duplicates.length > 0) {
         throw new ApiError(422, `Hay variables repetidas en el formulario: ${duplicates.join(', ')}`);
@@ -46,6 +55,13 @@ export default withCors(async (req, res) => {
         throw new ApiError(
           422,
           `Falta indicar instrucciones de diligenciamiento en: ${missingInstrucciones.map((f) => f.label).join(', ')}`
+        );
+      }
+      const invalidTables = findInvalidTableFields(allFields);
+      if (invalidTables.length > 0) {
+        throw new ApiError(
+          422,
+          `Falta configurar las columnas de la tabla dinámica en: ${invalidTables.map((f) => f.label).join(', ')}`
         );
       }
       updates.sections = sections;
