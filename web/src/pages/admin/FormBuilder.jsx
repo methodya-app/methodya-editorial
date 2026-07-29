@@ -48,6 +48,7 @@ export default function FormBuilder() {
         titulo: form.titulo,
         descripcion: form.descripcion,
         sections: form.sections,
+        limites_subformularios: form.limites_subformularios || [],
       });
       setSavedAt(new Date());
     } catch (err) {
@@ -100,6 +101,29 @@ export default function FormBuilder() {
     });
   };
 
+  const addLimit = () => {
+    setForm({
+      ...form,
+      limites_subformularios: [
+        ...(form.limites_subformularios || []),
+        { id: `limit_${Date.now()}`, subform_id: '', subform_nombre: '', alcance: 'formulario', maximo: '' },
+      ],
+    });
+  };
+
+  const updateLimit = (idx, patch) => {
+    const limites = [...(form.limites_subformularios || [])];
+    limites[idx] = { ...limites[idx], ...patch };
+    setForm({ ...form, limites_subformularios: limites });
+  };
+
+  const removeLimit = (idx) => {
+    setForm({
+      ...form,
+      limites_subformularios: (form.limites_subformularios || []).filter((_, i) => i !== idx),
+    });
+  };
+
   if (!form) return <p className="text-slate-500">Cargando formulario...</p>;
 
   const variableCounts = form.sections
@@ -141,6 +165,64 @@ export default function FormBuilder() {
         className="w-full border border-deepViolet/20 rounded-lg p-2 text-sm"
         rows={2}
       />
+
+      <div className="paper-card rounded-xl p-4 space-y-2">
+        <p className="text-sm font-display font-bold text-deepViolet">Límites de subformularios</p>
+        <p className="text-xs text-slate-500">
+          Opcional: limita cuántas instancias de un tipo de subformulario (ej: "Video") se pueden agregar — en
+          todo el formulario, o por sección. Sin ninguna regla aquí, no hay límite.
+        </p>
+        {(form.limites_subformularios || []).map((limit, idx) => (
+          <div key={limit.id} className="flex flex-wrap gap-2 items-center bg-deepViolet/5 rounded-md p-2">
+            <select
+              className={`border rounded-md p-1.5 text-sm ${
+                !limit.subform_id ? 'border-red-400' : 'border-deepViolet/20'
+              }`}
+              value={limit.subform_id}
+              onChange={(e) => {
+                const sf = subformsLibrary.find((s) => s._id === e.target.value);
+                updateLimit(idx, { subform_id: e.target.value, subform_nombre: sf?.nombre || '' });
+              }}
+            >
+              <option value="">Selecciona un subformulario...</option>
+              {subformsLibrary.map((sf) => (
+                <option key={sf._id} value={sf._id}>
+                  {sf.nombre}
+                </option>
+              ))}
+            </select>
+            <select
+              className="border border-deepViolet/20 rounded-md p-1.5 text-sm"
+              value={limit.alcance}
+              onChange={(e) => updateLimit(idx, { alcance: e.target.value })}
+            >
+              <option value="formulario">Total en todo el formulario</option>
+              <option value="seccion">Por sección</option>
+            </select>
+            <label className="flex items-center gap-1.5 text-sm">
+              Máximo
+              <input
+                type="number"
+                min="1"
+                className={`w-20 border rounded-md p-1.5 text-sm ${
+                  !limit.maximo ? 'border-red-400' : 'border-deepViolet/20'
+                }`}
+                value={limit.maximo}
+                onChange={(e) => updateLimit(idx, { maximo: e.target.value })}
+              />
+            </label>
+            <button onClick={() => removeLimit(idx)} className="text-red-500 text-xs hover:underline ml-auto">
+              Eliminar
+            </button>
+          </div>
+        ))}
+        <button onClick={addLimit} className="text-xs font-semibold text-cognitiveTeal hover:underline">
+          + Agregar límite
+        </button>
+        {subformsLibrary.length === 0 && (
+          <p className="text-xs text-slate-400">No hay subformularios creados aún (Biblioteca de subformularios).</p>
+        )}
+      </div>
 
       {form.sections.map((section) => (
         <div key={section.id} className="paper-card rounded-xl p-4 space-y-3">

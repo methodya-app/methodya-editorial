@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { toObjectId } from './mongo.js';
-import { validateFieldValue } from './validation.js';
+import { validateFieldValue, validateSubformLimits } from './validation.js';
 
 // Estados en los que el Creador Experto (humano o agente sintético) puede
 // editar el contenido del documento. Lo usan tanto el guardado normal
@@ -12,10 +12,12 @@ export const EDITABLE_STATES = {
   revisor_estilo: ['Revisión Estilo'],
 };
 
-// Valida todos los campos de un formulario (excepto los de tipo 'subform',
-// que se validan dentro del subformulario, fuera de alcance beta) contra su
-// propia regla y las validaciones globales del proyecto. Devuelve un objeto
-// { variable: [errores] }, vacío si todo calza.
+// Valida todos los campos de un formulario (el contenido interno de cada
+// instancia de subformulario todavía se valida aparte, fuera de alcance
+// beta) contra su propia regla y las validaciones globales del proyecto,
+// más los límites de cantidad de instancias por tipo de subformulario
+// definidos a nivel de todo el formulario (ver FormBuilder.jsx). Devuelve
+// un objeto { variable: [errores] }, vacío si todo calza.
 export function validateDocumentValues({ form, values, globalValidations = [] }) {
   const allFields = form.sections.flatMap((s) => s.fields);
   const errors = {};
@@ -24,6 +26,10 @@ export function validateDocumentValues({ form, values, globalValidations = [] })
     const value = values[field.variable];
     const fieldErrors = validateFieldValue(field, value, globalValidations);
     if (fieldErrors.length) errors[field.variable] = fieldErrors;
+  }
+  const limitErrors = validateSubformLimits(form, values);
+  for (const [variable, msgs] of Object.entries(limitErrors)) {
+    errors[variable] = [...(errors[variable] || []), ...msgs];
   }
   return errors;
 }
