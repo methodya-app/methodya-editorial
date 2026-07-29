@@ -9,7 +9,8 @@ export default withCors(async (req, res) => {
   const { id } = req.query;
 
   if (req.method === 'PUT') {
-    const { nombre, apellido, email, is_admin, activo, eliminado, password } = req.body || {};
+    const { nombre, apellido, email, is_admin, activo, eliminado, password, persona_prompt, persona_model } =
+      req.body || {};
     const updates = {};
     if (nombre !== undefined) updates.nombre = nombre;
     if (apellido !== undefined) updates.apellido = apellido;
@@ -17,6 +18,8 @@ export default withCors(async (req, res) => {
     if (is_admin !== undefined) updates.is_admin = is_admin;
     if (activo !== undefined) updates.activo = activo;
     if (eliminado !== undefined) updates.eliminado = eliminado;
+    if (persona_prompt !== undefined) updates.persona_prompt = persona_prompt || null;
+    if (persona_model !== undefined) updates.persona_model = persona_model || null;
     updates.updated_at = new Date().toISOString();
 
     if (email !== undefined) {
