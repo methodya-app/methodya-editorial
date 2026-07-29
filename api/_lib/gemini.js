@@ -236,10 +236,93 @@ export async function extractDotacionSpecs({ base64Data, mimeType }) {
   };
 }
 
-// Genera los valores de un formulario (todos los campos excepto los de tipo
-// 'subform', que maneja el equipo multimedia, fuera de alcance) en la
-// voz/expertise de un agente sintético (Creador Experto operado por IA),
-// usando el contexto real de parametrización ya armado por buildContextText
+// Describe un campo para el prompt del agente sintético. Recursivo: una
+// "tabla_dinamica" describe sus columnas (con su propia regla de
+// validación), y un "subform" describe cada tipo de subformulario permitido
+// (de subformsLibrary) con sus propios campos, incluida cualquier
+// tabla_dinamica anidada. `depth` evita recursión descontrolada si algún día
+// un subformulario llegara a incluirse a sí mismo; en la práctica nunca pasa
+// de 1 nivel (los subformularios de la biblioteca no anidan subformularios).
+function describeField(f, ctx, depth = 0) {
+  const { projectPoblaciones, projectTemas, projectDotacionReferencias, subformsLibrary, limitesSubformularios } = ctx;
+  const parts = [`- "${f.variable}" (${f.label}): tipo ${f.type}`];
+  if (f.required) parts.push('OBLIGATORIO');
+  if (f.instrucciones?.trim()) parts.push(`instrucciones: ${f.instrucciones.trim()}`);
+
+  // Los tipos "poblacion_objetivo" / "temas_focos" / "dotacion" no traen sus
+  // opciones en field.options (se toman en vivo de la Parametrización del
+  // proyecto), así que se describen aparte con el mismo id/texto exacto que
+  // se debe guardar como valor.
+  if (f.type === 'poblacion_objetivo') {
+    const opts = projectPoblaciones.map((p) => `"${p.id}" = ${p.nombre}`).join(' | ');
+    parts.push(`selección única, valor = el id exacto entre comillas de UNA de estas opciones: ${opts || '(el proyecto no tiene poblaciones configuradas)'}`);
+  } else if (f.type === 'temas_focos') {
+    const opts = projectTemas.join(' | ');
+    parts.push(`selección múltiple, valor = array JSON con 0 o más de estos textos EXACTOS: ${opts || '(el proyecto no tiene temas configurados)'}`);
+  } else if (f.type === 'dotacion') {
+    const opts = projectDotacionReferencias.map((r) => `"${r.id}" = ${r.nombre} (${r.referencia})`).join(' | ');
+    parts.push(`selección múltiple, valor = array JSON con 0 o más ids EXACTOS entre comillas de estas opciones: ${opts || '(el proyecto no tiene dotación configurada)'}`);
+  } else if (f.options?.length) {
+    parts.push(`opciones válidas: ${f.options.join(' | ')}`);
+  }
+  if (f.placeholder) parts.push(`ejemplo/placeholder: ${f.placeholder}`);
+  if (f.validation?.enabled && f.validation?.description) {
+    parts.push(`regla de validación: ${f.validation.description}`);
+  }
+
+  let line = parts.join(', ');
+
+  if (f.type === 'tabla_dinamica') {
+    const maxFilas = f.max_filas ? ` (máximo ${f.max_filas} filas)` : '';
+    line += `, valor = array JSON de filas${maxFilas}, cada fila un objeto con estas claves:`;
+    const cols = (f.columnas || [])
+      .map((c) => {
+        const colParts = [`  - "${c.variable}" (${c.etiqueta}, tipo ${c.tipo})`];
+        if (c.validation?.enabled && c.validation?.description) {
+          colParts.push(`regla de validación: ${c.validation.description}`);
+        }
+        return colParts.join(', ');
+      })
+      .join('\n');
+    return cols ? `${line}\n${cols}` : line;
+  }
+
+  if (f.type === 'subform') {
+    const allowedIds = f.subform_ids || [];
+    const allowedTypes = subformsLibrary.filter((sf) => allowedIds.includes(sf._id));
+    const maxInstancias = f.allow_multiple_instances ? 'puede tener varias instancias' : 'como máximo 1 instancia';
+    line +=
+      `, valor = {"subform_id": "<id EXACTO de uno de los tipos listados abajo>", "instances": [{"values": {...}}]}` +
+      ` (${maxInstancias}). Tipos de subformulario permitidos (elige uno por instancia):`;
+    if (depth >= 2 || allowedTypes.length === 0) {
+      return `${line} (sin tipos configurados)`;
+    }
+    const typeBlocks = allowedTypes
+      .map((sf) => {
+        const rule = (limitesSubformularios || []).find((r) => r.subform_id === sf._id);
+        const limitNote = rule
+          ? ` LÍMITE: máximo ${rule.maximo} instancias de este tipo ${
+              rule.alcance === 'seccion' ? 'por sección' : 'en todo el formulario'
+            } (cuenta todas las instancias de este tipo en el formulario, no solo las de este campo).`
+          : '';
+        const subfieldLines = (sf.fields || [])
+          .map((subfield) =>
+            '  ' + describeField(subfield, ctx, depth + 1).split('\n').join('\n  ')
+          )
+          .join('\n');
+        return `  Tipo "${sf._id}" = ${sf.nombre}:${limitNote}\n${subfieldLines}`;
+      })
+      .join('\n');
+    return `${line}\n${typeBlocks}`;
+  }
+
+  return line;
+}
+
+// Genera los valores de un formulario (todos los campos, incluidos
+// "tabla_dinamica" y "subform") en la voz/expertise de un agente sintético
+// (Creador Experto operado por IA), usando el contexto real de
+// parametrización ya armado por buildContextText
 // (api/_lib/parametrizacion.js). Si `previousErrors` viene informado, le
 // pide al modelo corregir esos campos puntuales sin repetir el error. Sin
 // heurística de respaldo: sin clave de Gemini no es posible generar
@@ -253,6 +336,7 @@ export async function generateDocumentValues({
   projectPoblaciones = [],
   projectTemas = [],
   projectDotacionReferencias = [],
+  subformsLibrary = [],
 }) {
   const apiKey = await resolveGeminiKey();
   const model = modelOverride || process.env.GEMINI_MODEL || 'gemini-2.5-flash';
@@ -264,36 +348,16 @@ export async function generateDocumentValues({
     );
   }
 
-  const fields = (form?.sections || []).flatMap((s) => s.fields || []).filter((f) => f.type !== 'subform');
+  const fields = (form?.sections || []).flatMap((s) => s.fields || []);
 
-  // Los tipos "poblacion_objetivo" / "temas_focos" / "dotacion" no traen sus
-  // opciones en field.options (se toman en vivo de la Parametrización del
-  // proyecto), así que se describen aparte con el mismo id/texto exacto que
-  // se debe guardar como valor.
-  const fieldsSchema = fields
-    .map((f) => {
-      const parts = [`- "${f.variable}" (${f.label}): tipo ${f.type}`];
-      if (f.required) parts.push('OBLIGATORIO');
-      if (f.instrucciones?.trim()) parts.push(`instrucciones: ${f.instrucciones.trim()}`);
-      if (f.type === 'poblacion_objetivo') {
-        const opts = projectPoblaciones.map((p) => `"${p.id}" = ${p.nombre}`).join(' | ');
-        parts.push(`selección única, valor = el id exacto entre comillas de UNA de estas opciones: ${opts || '(el proyecto no tiene poblaciones configuradas)'}`);
-      } else if (f.type === 'temas_focos') {
-        const opts = projectTemas.join(' | ');
-        parts.push(`selección múltiple, valor = array JSON con 0 o más de estos textos EXACTOS: ${opts || '(el proyecto no tiene temas configurados)'}`);
-      } else if (f.type === 'dotacion') {
-        const opts = projectDotacionReferencias.map((r) => `"${r.id}" = ${r.nombre} (${r.referencia})`).join(' | ');
-        parts.push(`selección múltiple, valor = array JSON con 0 o más ids EXACTOS entre comillas de estas opciones: ${opts || '(el proyecto no tiene dotación configurada)'}`);
-      } else if (f.options?.length) {
-        parts.push(`opciones válidas: ${f.options.join(' | ')}`);
-      }
-      if (f.placeholder) parts.push(`ejemplo/placeholder: ${f.placeholder}`);
-      if (f.validation?.enabled && f.validation?.description) {
-        parts.push(`regla de validación: ${f.validation.description}`);
-      }
-      return parts.join(', ');
-    })
-    .join('\n');
+  const ctx = {
+    projectPoblaciones,
+    projectTemas,
+    projectDotacionReferencias,
+    subformsLibrary,
+    limitesSubformularios: form?.limites_subformularios || [],
+  };
+  const fieldsSchema = fields.map((f) => describeField(f, ctx)).join('\n');
 
   let errorsSection = '';
   if (previousErrors && Object.keys(previousErrors).length > 0) {
@@ -319,7 +383,11 @@ export async function generateDocumentValues({
     'del formulario y su valor generado. Para campos "select" o "checkbox" usa exactamente una (o, en ' +
     'checkbox, varias) de las opciones válidas listadas. Para "poblacion_objetivo" y "dotacion" usa ' +
     'exactamente el/los id(s) entre comillas indicados (nunca el nombre). Para "temas_focos" usa exactamente ' +
-    'el/los texto(s) indicados. Para "number" usa un valor numérico. Respeta las reglas de validación descritas.';
+    'el/los texto(s) indicados. Para "number" usa un valor numérico. Para "tabla_dinamica" genera un array de ' +
+    'filas (objetos) con exactamente las claves de columna indicadas. Para "subform" usa el id EXACTO de uno ' +
+    'de los tipos permitidos y genera cada instancia con sus propios valores según los campos de ese tipo ' +
+    'descritos (sin incluir "id" ni "codigo", se asignan automáticamente), respetando la cantidad de ' +
+    'instancias permitida y cualquier LÍMITE indicado. Respeta las reglas de validación descritas en todos los niveles.';
 
   const resp = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
