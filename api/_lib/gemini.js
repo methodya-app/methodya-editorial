@@ -236,6 +236,21 @@ export async function extractDotacionSpecs({ base64Data, mimeType }) {
   };
 }
 
+// Arma el texto de longitud/patrón de una validación para el prompt: antes
+// solo se mandaba `description` (texto libre que escribe el admin, que no
+// siempre menciona los números), así que el modelo podía no enterarse de un
+// min_length/max_length aunque sí estuviera activo y se fuera a exigir en la
+// validación real — causando que generara contenido con la longitud
+// correcta según su propio criterio pero fuera de rango.
+function describeValidation(v) {
+  if (!v?.enabled) return null;
+  const parts = [];
+  if (v.min_length) parts.push(`mínimo ${v.min_length} caracteres`);
+  if (v.max_length) parts.push(`máximo ${v.max_length} caracteres`);
+  if (v.description) parts.push(v.description);
+  return parts.length ? parts.join(', ') : null;
+}
+
 // Describe un campo para el prompt del agente sintético. Recursivo: una
 // "tabla_dinamica" describe sus columnas (con su propia regla de
 // validación), y un "subform" describe cada tipo de subformulario permitido
@@ -266,9 +281,8 @@ function describeField(f, ctx, depth = 0) {
     parts.push(`opciones válidas: ${f.options.join(' | ')}`);
   }
   if (f.placeholder) parts.push(`ejemplo/placeholder: ${f.placeholder}`);
-  if (f.validation?.enabled && f.validation?.description) {
-    parts.push(`regla de validación: ${f.validation.description}`);
-  }
+  const validationText = describeValidation(f.validation);
+  if (validationText) parts.push(`regla de validación: ${validationText}`);
 
   let line = parts.join(', ');
 
@@ -278,9 +292,8 @@ function describeField(f, ctx, depth = 0) {
     const cols = (f.columnas || [])
       .map((c) => {
         const colParts = [`  - "${c.variable}" (${c.etiqueta}, tipo ${c.tipo})`];
-        if (c.validation?.enabled && c.validation?.description) {
-          colParts.push(`regla de validación: ${c.validation.description}`);
-        }
+        const colValidationText = describeValidation(c.validation);
+        if (colValidationText) colParts.push(`regla de validación: ${colValidationText}`);
         return colParts.join(', ');
       })
       .join('\n');
