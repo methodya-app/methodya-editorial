@@ -256,11 +256,22 @@ export async function extractDotacionSpecs({ base64Data, mimeType }) {
 // min_length/max_length aunque sí estuviera activo y se fuera a exigir en la
 // validación real — causando que generara contenido con la longitud
 // correcta según su propio criterio pero fuera de rango.
+// Margen de seguridad restado al máximo real al describírselo al modelo: los
+// LLM no cuentan caracteres con precisión (trabajan por tokens, no por
+// letras) y tienden a pasarse por muy poco (1-2 caracteres) del límite
+// pedido — eso basta para que la validación real (que sí cuenta exacto) lo
+// rechace una y otra vez. Pedir unos caracteres menos de los que en verdad
+// se permiten absorbe ese margen de error típico sin cambiar el límite real.
+const MAX_LENGTH_SAFETY_MARGIN = 4;
+
 function describeValidation(v) {
   if (!v?.enabled) return null;
   const parts = [];
   if (v.min_length) parts.push(`mínimo ${v.min_length} caracteres`);
-  if (v.max_length) parts.push(`máximo ${v.max_length} caracteres`);
+  if (v.max_length) {
+    const target = Math.max(Number(v.min_length) || 1, Number(v.max_length) - MAX_LENGTH_SAFETY_MARGIN);
+    parts.push(`máximo ${target} caracteres`);
+  }
   if (v.description) parts.push(v.description);
   return parts.length ? parts.join(', ') : null;
 }
