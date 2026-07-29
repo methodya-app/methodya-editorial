@@ -10,6 +10,8 @@ import ProjectMassChangesTab from './project/ProjectMassChangesTab.jsx';
 import ProjectAssignmentTab from './project/ProjectAssignmentTab.jsx';
 import ProjectMultimediaTeamTab from './project/ProjectMultimediaTeamTab.jsx';
 import ProjectMultimediaAssignmentTab from './project/ProjectMultimediaAssignmentTab.jsx';
+import ProjectImplementationTeamTab from './project/ProjectImplementationTeamTab.jsx';
+import ProjectImplementationAssignmentTab from './project/ProjectImplementationAssignmentTab.jsx';
 
 const TABS = [
   { key: 'formularios', label: 'Formularios' },
@@ -22,6 +24,7 @@ const TABS = [
 const USUARIOS_GROUP_TABS = [
   { key: 'creadores-revisores', label: 'Creadores y revisores' },
   { key: 'multimedia', label: 'Equipo multimedia' },
+  { key: 'implementacion', label: 'Equipo implementación' },
 ];
 
 const CREADORES_SUBTABS = [
@@ -32,6 +35,11 @@ const CREADORES_SUBTABS = [
 const MULTIMEDIA_SUBTABS = [
   { key: 'usuarios', label: 'Usuarios' },
   { key: 'asignacion', label: 'Asignación multimedia' },
+];
+
+const IMPLEMENTACION_SUBTABS = [
+  { key: 'usuarios', label: 'Usuarios' },
+  { key: 'asignacion', label: 'Asignación' },
 ];
 
 function SubTabs({ tabs, active, onChange }) {
@@ -59,6 +67,7 @@ export default function ProjectDetail() {
   const [usuariosGroupTab, setUsuariosGroupTab] = useState('creadores-revisores');
   const [creadoresSubTab, setCreadoresSubTab] = useState('usuarios');
   const [multimediaSubTab, setMultimediaSubTab] = useState('usuarios');
+  const [implementacionSubTab, setImplementacionSubTab] = useState('usuarios');
 
   const load = async () => {
     const data = await api.get(`/projects/${id}`);
@@ -129,6 +138,18 @@ export default function ProjectDetail() {
               {multimediaSubTab === 'usuarios' && <ProjectMultimediaTeamTab projectId={id} readOnly={readOnly} />}
               {multimediaSubTab === 'asignacion' && (
                 <ProjectMultimediaAssignmentTab projectId={id} readOnly={readOnly} />
+              )}
+            </div>
+          )}
+
+          {usuariosGroupTab === 'implementacion' && (
+            <div className="space-y-4">
+              <SubTabs tabs={IMPLEMENTACION_SUBTABS} active={implementacionSubTab} onChange={setImplementacionSubTab} />
+              {implementacionSubTab === 'usuarios' && (
+                <ProjectImplementationTeamTab projectId={id} readOnly={readOnly} />
+              )}
+              {implementacionSubTab === 'asignacion' && (
+                <ProjectImplementationAssignmentTab projectId={id} readOnly={readOnly} />
               )}
             </div>
           )}
