@@ -12,6 +12,7 @@ export const TITULO_FIELD = {
   type: 'text',
   required: true,
   placeholder: '',
+  instrucciones: 'Escribe un título breve que identifique esta instancia (ej: nombre del recurso).',
   options: [],
   validation: {
     enabled: false,

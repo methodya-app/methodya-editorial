@@ -274,6 +274,7 @@ export async function generateDocumentValues({
     .map((f) => {
       const parts = [`- "${f.variable}" (${f.label}): tipo ${f.type}`];
       if (f.required) parts.push('OBLIGATORIO');
+      if (f.instrucciones?.trim()) parts.push(`instrucciones: ${f.instrucciones.trim()}`);
       if (f.type === 'poblacion_objetivo') {
         const opts = projectPoblaciones.map((p) => `"${p.id}" = ${p.nombre}`).join(' | ');
         parts.push(`selección única, valor = el id exacto entre comillas de UNA de estas opciones: ${opts || '(el proyecto no tiene poblaciones configuradas)'}`);
