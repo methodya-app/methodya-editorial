@@ -433,5 +433,18 @@ export async function generateDocumentValues({
     throw new ApiError(502, 'Gemini no devolvió un objeto de valores utilizable');
   }
 
-  return { values, model, source: 'gemini' };
+  // usageMetadata viene en toda respuesta de Gemini; se registra para poder
+  // calcular el consumo de tokens del agente sintético (ver
+  // api/documents/[id]/generate.js, que lo guarda en document_generations).
+  const usage = result?.usageMetadata || {};
+  return {
+    values,
+    model,
+    source: 'gemini',
+    usage: {
+      promptTokens: usage.promptTokenCount ?? null,
+      completionTokens: usage.candidatesTokenCount ?? null,
+      totalTokens: usage.totalTokenCount ?? null,
+    },
+  };
 }
