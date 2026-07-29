@@ -51,7 +51,8 @@ function NavDropdown({ label, active, children }) {
 }
 
 export default function Layout() {
-  const { profile, isAdmin, isMultimediaCoordinator, multimediaProjectRoles, logout } = useAuth();
+  const { profile, isAdmin, isMultimediaCoordinator, multimediaProjectRoles, implementacionProjectRoles, logout } =
+    useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -113,6 +114,9 @@ export default function Layout() {
               )}
               {isMultimediaCoordinator && (
                 <NavLink to="/multimedia-roles" className={navLinkClass}>Roles multimedia</NavLink>
+              )}
+              {implementacionProjectRoles.length > 0 && (
+                <NavLink to="/implementacion" className={navLinkClass}>Implementación</NavLink>
               )}
             </>
           )}

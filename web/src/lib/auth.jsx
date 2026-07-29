@@ -9,6 +9,8 @@ export function AuthProvider({ children }) {
   const [projectRoles, setProjectRoles] = useState([]);
   const [multimediaProjectRoles, setMultimediaProjectRoles] = useState([]);
   const [isMultimediaCoordinator, setIsMultimediaCoordinator] = useState(false);
+  const [implementacionProjectRoles, setImplementacionProjectRoles] = useState([]);
+  const [isImplementacionLider, setIsImplementacionLider] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const loadMe = useCallback(async () => {
@@ -19,12 +21,16 @@ export function AuthProvider({ children }) {
       setProjectRoles(data.project_roles || []);
       setMultimediaProjectRoles(data.multimedia_project_roles || []);
       setIsMultimediaCoordinator(!!data.is_multimedia_coordinator);
+      setImplementacionProjectRoles(data.implementacion_project_roles || []);
+      setIsImplementacionLider(!!data.is_implementacion_lider);
     } catch {
       setProfile(null);
       setIsAdmin(false);
       setProjectRoles([]);
       setMultimediaProjectRoles([]);
       setIsMultimediaCoordinator(false);
+      setImplementacionProjectRoles([]);
+      setIsImplementacionLider(false);
       setToken(null);
     } finally {
       setLoading(false);
@@ -43,6 +49,8 @@ export function AuthProvider({ children }) {
     setIsAdmin(!!data.profile.is_admin);
     setMultimediaProjectRoles(data.multimedia_project_roles || []);
     setIsMultimediaCoordinator(!!data.is_multimedia_coordinator);
+    setImplementacionProjectRoles(data.implementacion_project_roles || []);
+    setIsImplementacionLider(!!data.is_implementacion_lider);
     return data;
   };
 
@@ -53,6 +61,8 @@ export function AuthProvider({ children }) {
     setProjectRoles([]);
     setMultimediaProjectRoles([]);
     setIsMultimediaCoordinator(false);
+    setImplementacionProjectRoles([]);
+    setIsImplementacionLider(false);
   };
 
   return (
@@ -63,6 +73,8 @@ export function AuthProvider({ children }) {
         projectRoles,
         multimediaProjectRoles,
         isMultimediaCoordinator,
+        implementacionProjectRoles,
+        isImplementacionLider,
         loading,
         login,
         logout,

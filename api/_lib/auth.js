@@ -31,12 +31,18 @@ export async function requireAuth(req) {
     .select('project_id, es_coordinador, multimedia_role_id, multimedia_roles(nombre)')
     .eq('user_id', profile.id);
 
+  const { data: implementacionRoles } = await admin
+    .from('implementacion_project_users')
+    .select('project_id, role')
+    .eq('user_id', profile.id);
+
   return {
     user: data.user,
     profile,
     isAdmin: !!profile.is_admin,
     projectRoles: projectRoles || [],
     multimediaRoles: multimediaRoles || [],
+    implementacionRoles: implementacionRoles || [],
   };
 }
 
@@ -84,4 +90,16 @@ export function multimediaRolesInProject(auth, projectId) {
   return auth.multimediaRoles
     .filter((mr) => mr.project_id === projectId && !mr.es_coordinador)
     .map((mr) => ({ id: mr.multimedia_role_id, nombre: mr.multimedia_roles?.nombre }));
+}
+
+// Es Líder de implementación de ESE proyecto (o Administrador). A
+// diferencia de Multimedia no hay un catálogo de roles: "lider" es uno de
+// los 2 valores fijos de implementacion_project_users.role.
+export function isProjectImplementationLeader(auth, projectId) {
+  return auth.isAdmin || auth.implementacionRoles.some((r) => r.project_id === projectId && r.role === 'lider');
+}
+
+// Tiene cualquier rol de implementación (implementador o líder) en ese proyecto.
+export function hasImplementationRole(auth, projectId) {
+  return auth.implementacionRoles.some((r) => r.project_id === projectId);
 }

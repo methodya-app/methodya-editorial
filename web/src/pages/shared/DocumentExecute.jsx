@@ -52,12 +52,13 @@ export default function DocumentExecute() {
   const [vaciando, setVaciando] = useState(false);
   const [toast, setToast] = useState(null);
   const [spellWarning, setSpellWarning] = useState(null);
+  const [implementation, setImplementation] = useState(null);
 
   const load = useCallback(async () => {
     const doc = await api.get(`/documents/${id}`);
     setData(doc);
     setValues(doc.values || {});
-    const [subforms, paragraphs, users, validations, publicSettings, poblaciones, dotacionReferencias] =
+    const [subforms, paragraphs, users, validations, publicSettings, poblaciones, dotacionReferencias, implementationData] =
       await Promise.all([
         api.get('/subforms'),
         api.get('/paragraphs'),
@@ -66,8 +67,10 @@ export default function DocumentExecute() {
         api.get('/settings/public'),
         api.get('/poblaciones-objetivo'),
         api.get('/dotacion-referencias'),
+        api.get(`/documents/${id}/implementation`),
       ]);
     setSubformsLibrary(subforms.subforms);
+    setImplementation(implementationData.implementation);
     setParagraphsLibrary(paragraphs.paragraphs);
     setProjectUsers(users.project_users);
     setGlobalValidations(validations.validations);
@@ -261,6 +264,18 @@ export default function DocumentExecute() {
     }
   };
 
+  const canReleaseToImplementation = isAdmin || access.is_revisor_estilo;
+
+  const releaseToImplementation = async () => {
+    try {
+      await api.post(`/documents/${id}/implementation/release`);
+      await load();
+      setToast({ type: 'success', text: 'Documento enviado a implementación ✓' });
+    } catch (err) {
+      setToast({ type: 'error', text: 'No se pudo enviar a implementación: ' + err.message });
+    }
+  };
+
   const vaciar = async () => {
     if (vaciando) return; // ya hay un vaciamiento en curso, ignora el doble clic
     setSaving(true);
@@ -321,6 +336,22 @@ export default function DocumentExecute() {
           🎬 Enviar todos los subformularios a multimedia
         </button>
       )}
+
+      {document.estado === 'Finalizado' &&
+        (implementation ? (
+          <p className="text-xs text-slate-500">
+            📋 En implementación: <span className="font-semibold text-deepViolet">{implementation.estado}</span>
+          </p>
+        ) : (
+          canReleaseToImplementation && (
+            <button
+              onClick={releaseToImplementation}
+              className="text-xs font-semibold text-cognitiveTeal hover:underline"
+            >
+              📋 Enviar a implementación
+            </button>
+          )
+        ))}
 
       {form && (
         <FormRenderer
