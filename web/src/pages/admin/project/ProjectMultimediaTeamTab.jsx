@@ -11,6 +11,8 @@ export default function ProjectMultimediaTeamTab({ projectId, readOnly }) {
   const [allUsers, setAllUsers] = useState([]);
   const [userId, setUserId] = useState('');
   const [roleValue, setRoleValue] = useState('');
+  const [editingId, setEditingId] = useState(null);
+  const [editRoleValue, setEditRoleValue] = useState('');
 
   const load = async () => {
     const [team, roles, users] = await Promise.all([
@@ -43,6 +45,26 @@ export default function ProjectMultimediaTeamTab({ projectId, readOnly }) {
 
   const removeMember = async (id) => {
     await api.del(`/projects/${projectId}/multimedia-team`, { multimedia_project_user_id: id });
+    load();
+  };
+
+  const startEdit = (member) => {
+    setEditingId(member.id);
+    setEditRoleValue(member.es_coordinador ? COORDINADOR : member.multimedia_role_id);
+  };
+
+  const cancelEdit = () => setEditingId(null);
+
+  const saveEdit = async (id) => {
+    if (editRoleValue === COORDINADOR) {
+      await api.put(`/projects/${projectId}/multimedia-team`, { multimedia_project_user_id: id, es_coordinador: true });
+    } else {
+      await api.put(`/projects/${projectId}/multimedia-team`, {
+        multimedia_project_user_id: id,
+        multimedia_role_id: editRoleValue,
+      });
+    }
+    setEditingId(null);
     load();
   };
 
@@ -103,13 +125,50 @@ export default function ProjectMultimediaTeamTab({ projectId, readOnly }) {
                   {m.profiles?.nombre} {m.profiles?.apellido}
                 </td>
                 <td className="p-3 text-slate-500">{m.profiles?.email}</td>
-                <td className="p-3">{m.es_coordinador ? 'Coordinador Multimedia' : m.multimedia_roles?.nombre}</td>
                 <td className="p-3">
-                  {!readOnly && (
-                    <button onClick={() => removeMember(m.id)} className="text-xs text-red-500 hover:underline">
-                      Quitar
-                    </button>
+                  {editingId === m.id ? (
+                    <select
+                      value={editRoleValue}
+                      onChange={(e) => setEditRoleValue(e.target.value)}
+                      className="border border-deepViolet/20 rounded-lg p-1.5 text-sm"
+                    >
+                      {multimediaRoles.map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {r.nombre}
+                        </option>
+                      ))}
+                      <option value={COORDINADOR}>Coordinador Multimedia</option>
+                    </select>
+                  ) : m.es_coordinador ? (
+                    'Coordinador Multimedia'
+                  ) : (
+                    m.multimedia_roles?.nombre
                   )}
+                </td>
+                <td className="p-3 space-x-2">
+                  {!readOnly &&
+                    (editingId === m.id ? (
+                      <>
+                        <button
+                          onClick={() => saveEdit(m.id)}
+                          className="text-xs text-cognitiveTeal font-semibold hover:underline"
+                        >
+                          Guardar
+                        </button>
+                        <button onClick={cancelEdit} className="text-xs text-slate-500 hover:underline">
+                          Cancelar
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button onClick={() => startEdit(m)} className="text-xs text-cognitiveTeal hover:underline">
+                          Editar
+                        </button>
+                        <button onClick={() => removeMember(m.id)} className="text-xs text-red-500 hover:underline">
+                          Quitar
+                        </button>
+                      </>
+                    ))}
                 </td>
               </tr>
             ))}
