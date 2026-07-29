@@ -412,6 +412,13 @@ create table if not exists public.document_generations (
   created_at timestamptz not null default now()
 );
 
+-- Consumo de tokens de cada intento (usageMetadata de la respuesta de
+-- Gemini, ver api/_lib/gemini.js), para poder calcular el gasto del agente
+-- sintético agregado por proyecto o por agente (api/agent-usage.js).
+alter table public.document_generations add column if not exists prompt_tokens int;
+alter table public.document_generations add column if not exists completion_tokens int;
+alter table public.document_generations add column if not exists total_tokens int;
+
 create index if not exists idx_document_generations_document on public.document_generations(document_id);
 
 -- =====================================================================
