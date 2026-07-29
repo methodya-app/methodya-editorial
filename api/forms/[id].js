@@ -7,6 +7,7 @@ import {
   findFieldsMissingInstrucciones,
   findInvalidTableFields,
   findTableColumnsMissingCustomMessage,
+  findInvalidSubformLimits,
 } from '../_lib/validation.js';
 
 export default withCors(async (req, res) => {
@@ -24,12 +25,19 @@ export default withCors(async (req, res) => {
 
   if (req.method === 'PUT') {
     requireAdmin(auth);
-    const { titulo, descripcion, document_type_id, sections, eliminado } = req.body || {};
+    const { titulo, descripcion, document_type_id, sections, eliminado, limites_subformularios } = req.body || {};
     const updates = { updated_at: new Date() };
     if (titulo !== undefined) updates.titulo = titulo;
     if (descripcion !== undefined) updates.descripcion = descripcion;
     if (document_type_id !== undefined) updates.document_type_id = document_type_id;
     if (eliminado !== undefined) updates.eliminado = eliminado;
+    if (limites_subformularios !== undefined) {
+      const invalidLimits = findInvalidSubformLimits(limites_subformularios);
+      if (invalidLimits.length > 0) {
+        throw new ApiError(422, 'Falta el tipo de subformulario o el máximo en alguno de los límites configurados.');
+      }
+      updates.limites_subformularios = limites_subformularios;
+    }
     if (sections !== undefined) {
       const allFields = sections.flatMap((s) => s.fields || []);
       const missing = findFieldsMissingCustomMessage(allFields);
