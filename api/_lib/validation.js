@@ -51,6 +51,13 @@ export function findFieldsMissingCustomMessage(fields) {
   return (fields || []).filter((f) => f.validation?.enabled && !f.validation?.custom_message?.trim());
 }
 
+// Las instrucciones de diligenciamiento son obligatorias en todo campo: le
+// dicen tanto a un Creador Experto humano como a un agente sintético qué se
+// espera diligenciar ahí, sin depender solo de interpretar la etiqueta.
+export function findFieldsMissingInstrucciones(fields) {
+  return (fields || []).filter((f) => !f.instrucciones?.trim());
+}
+
 // El nombre de variable ({{variable}}) identifica el campo dentro de los
 // valores diligenciados y de la plantilla de vaciamiento: no puede repetirse
 // dentro del mismo formulario (o subformulario).

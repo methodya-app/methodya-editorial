@@ -1,7 +1,11 @@
 import { withCors, ApiError } from '../_lib/cors.js';
 import { requireAuth, requireAdmin, roleInProject } from '../_lib/auth.js';
 import { getDb, toObjectId } from '../_lib/mongo.js';
-import { findFieldsMissingCustomMessage, findDuplicateVariables } from '../_lib/validation.js';
+import {
+  findFieldsMissingCustomMessage,
+  findDuplicateVariables,
+  findFieldsMissingInstrucciones,
+} from '../_lib/validation.js';
 
 export default withCors(async (req, res) => {
   const auth = await requireAuth(req);
@@ -36,6 +40,13 @@ export default withCors(async (req, res) => {
       const duplicates = findDuplicateVariables(allFields);
       if (duplicates.length > 0) {
         throw new ApiError(422, `Hay variables repetidas en el formulario: ${duplicates.join(', ')}`);
+      }
+      const missingInstrucciones = findFieldsMissingInstrucciones(allFields);
+      if (missingInstrucciones.length > 0) {
+        throw new ApiError(
+          422,
+          `Falta indicar instrucciones de diligenciamiento en: ${missingInstrucciones.map((f) => f.label).join(', ')}`
+        );
       }
       updates.sections = sections;
     }

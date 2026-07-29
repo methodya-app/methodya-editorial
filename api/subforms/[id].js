@@ -1,7 +1,11 @@
 import { withCors, ApiError } from '../_lib/cors.js';
 import { requireAuth, requireAdmin } from '../_lib/auth.js';
 import { getDb, toObjectId } from '../_lib/mongo.js';
-import { findFieldsMissingCustomMessage, findDuplicateVariables } from '../_lib/validation.js';
+import {
+  findFieldsMissingCustomMessage,
+  findDuplicateVariables,
+  findFieldsMissingInstrucciones,
+} from '../_lib/validation.js';
 import { ensureTituloField, normalizePrefijo } from '../_lib/subformDefaults.js';
 
 export default withCors(async (req, res) => {
@@ -41,6 +45,13 @@ export default withCors(async (req, res) => {
       const duplicates = findDuplicateVariables(withTitulo);
       if (duplicates.length > 0) {
         throw new ApiError(422, `Hay variables repetidas en el subformulario: ${duplicates.join(', ')}`);
+      }
+      const missingInstrucciones = findFieldsMissingInstrucciones(withTitulo);
+      if (missingInstrucciones.length > 0) {
+        throw new ApiError(
+          422,
+          `Falta indicar instrucciones de diligenciamiento en: ${missingInstrucciones.map((f) => f.label).join(', ')}`
+        );
       }
       updates.fields = withTitulo;
     }

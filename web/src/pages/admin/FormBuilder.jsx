@@ -11,6 +11,7 @@ function newField() {
     type: 'text',
     required: false,
     placeholder: '',
+    instrucciones: '',
     options: [],
     paragraph_tags: [],
     subform_ids: [],

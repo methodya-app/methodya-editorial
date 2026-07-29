@@ -10,6 +10,7 @@ function newField() {
     type: 'text',
     required: false,
     placeholder: '',
+    instrucciones: '',
     options: [],
     validation: {
       enabled: false,

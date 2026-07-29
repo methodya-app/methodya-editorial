@@ -87,6 +87,25 @@ export default function FieldEditor({ field, onUpdate, onRemove, subformsLibrary
         </button>
       </div>
 
+      <div>
+        <label className="block text-xs font-semibold text-slate-500 mb-0.5">
+          Instrucciones de diligenciamiento
+          <span className="text-red-500"> *</span>
+        </label>
+        <textarea
+          className={`w-full border rounded-md p-1.5 text-sm ${
+            !field.instrucciones?.trim() ? 'border-red-400' : 'border-deepViolet/20'
+          }`}
+          rows={2}
+          placeholder="Explica qué se espera diligenciar en este campo: quién lo lee es tanto un Creador Experto humano como un agente sintético."
+          value={field.instrucciones || ''}
+          onChange={(e) => patch({ instrucciones: e.target.value })}
+        />
+        {!field.instrucciones?.trim() && (
+          <p className="text-xs text-red-500 mt-0.5">Obligatorio: guía a quien diligencia el campo.</p>
+        )}
+      </div>
+
       <div className="grid grid-cols-3 gap-2">
         <div>
           <label className="block text-xs font-semibold text-slate-500 mb-0.5">Tipo de campo</label>

@@ -143,6 +143,9 @@ function FieldRenderer({
       <label className="block text-sm font-semibold text-slate-700 mb-1">
         {field.label} {field.required && <span className="text-red-500">*</span>}
       </label>
+      {field.instrucciones?.trim() && (
+        <p className="text-xs text-slate-500 mb-1.5">{field.instrucciones}</p>
+      )}
 
       <FieldInput
         field={field}
@@ -570,6 +573,9 @@ function SubformField({
           {(selectedSubform?.fields || []).map((sf) => (
             <div key={sf.id}>
               <label className="block text-xs font-medium text-slate-600 mb-0.5">{sf.label}</label>
+              {sf.instrucciones?.trim() && (
+                <p className="text-xs text-slate-500 mb-1">{sf.instrucciones}</p>
+              )}
               <FieldInput
                 field={sf}
                 value={inst.values?.[sf.variable]}
