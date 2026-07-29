@@ -409,7 +409,11 @@ export async function generateDocumentValues({
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         contents: [{ parts: [{ text: promptText }] }],
-        generationConfig: { responseMimeType: 'application/json' },
+        // temperature por defecto del modelo tiende a converger siempre a la
+        // respuesta "más típica" sin importar la persona del agente; se sube
+        // un poco para que distintos agentes (y distintos intentos del mismo
+        // agente) generen contenido más variado entre sí.
+        generationConfig: { responseMimeType: 'application/json', temperature: 1.2 },
       }),
     }
   );
