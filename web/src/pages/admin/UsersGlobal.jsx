@@ -58,7 +58,16 @@ export default function UsersGlobal() {
 
   const startEdit = (u) => {
     setEditingId(u.id);
-    setEditValues({ nombre: u.nombre, apellido: u.apellido, email: u.email, is_admin: u.is_admin, password: '' });
+    setEditValues({
+      nombre: u.nombre,
+      apellido: u.apellido,
+      email: u.email,
+      is_admin: u.is_admin,
+      password: '',
+      is_synthetic: u.is_synthetic,
+      persona_prompt: u.persona_prompt || '',
+      persona_model: u.persona_model || '',
+    });
   };
 
   const saveEdit = async (id) => {
@@ -70,6 +79,10 @@ export default function UsersGlobal() {
         is_admin: editValues.is_admin,
       };
       if (editValues.password) payload.password = editValues.password;
+      if (editValues.is_synthetic) {
+        payload.persona_prompt = editValues.persona_prompt;
+        payload.persona_model = editValues.persona_model;
+      }
       await api.put(`/users/${id}`, payload);
       setEditingId(null);
       setEditValues(null);
@@ -336,6 +349,34 @@ export default function UsersGlobal() {
                               />
                               Es Administrador
                             </label>
+                            {editValues.is_synthetic && (
+                              <>
+                                <div className="sm:col-span-3">
+                                  <label className="block text-xs font-semibold text-slate-500 mb-1">
+                                    Persona / instrucciones del agente
+                                  </label>
+                                  <textarea
+                                    required
+                                    rows={3}
+                                    placeholder="Ej: profesora de biología, tono directo, le gusta usar analogías con la vida cotidiana"
+                                    value={editValues.persona_prompt}
+                                    onChange={(e) => setEditValues({ ...editValues, persona_prompt: e.target.value })}
+                                    className="w-full border border-deepViolet/20 rounded-lg p-2 text-sm"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-xs font-semibold text-slate-500 mb-1">
+                                    Modelo (opcional)
+                                  </label>
+                                  <input
+                                    placeholder="Ej: gemini-2.5-flash (vacío = el modelo por defecto)"
+                                    value={editValues.persona_model}
+                                    onChange={(e) => setEditValues({ ...editValues, persona_model: e.target.value })}
+                                    className="w-full border border-deepViolet/20 rounded-lg p-2 text-sm"
+                                  />
+                                </div>
+                              </>
+                            )}
                           </div>
                           <div className="mt-3">
                             <button
