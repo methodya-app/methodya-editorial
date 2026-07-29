@@ -1,6 +1,20 @@
 import { supabaseAdmin } from './supabaseAdmin.js';
 import { ApiError } from './cors.js';
 
+// Baraja una copia del arreglo (Fisher-Yates). Se usa para que el orden en
+// que se listan opciones en el prompt (ej. tipos de subformulario) no quede
+// siempre igual — los modelos tienden a favorecer la primera opción de una
+// lista cuando no hay una razón fuerte para elegir otra, así que un orden
+// fijo termina sesgando siempre hacia el mismo tipo.
+function shuffle(arr) {
+  const copy = [...arr];
+  for (let i = copy.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+}
+
 // Heurística offline: se usa como respaldo si no hay API key configurada o
 // si la llamada a Gemini falla, para que el módulo nunca deje de funcionar.
 function heuristicRegex(ruleText) {
@@ -302,11 +316,12 @@ function describeField(f, ctx, depth = 0) {
 
   if (f.type === 'subform') {
     const allowedIds = f.subform_ids || [];
-    const allowedTypes = subformsLibrary.filter((sf) => allowedIds.includes(sf._id));
+    const allowedTypes = shuffle(subformsLibrary.filter((sf) => allowedIds.includes(sf._id)));
     const maxInstancias = f.allow_multiple_instances ? 'puede tener varias instancias' : 'como máximo 1 instancia';
     line +=
       `, valor = {"subform_id": "<id EXACTO de uno de los tipos listados abajo>", "instances": [{"values": {...}}]}` +
-      ` (${maxInstancias}). Tipos de subformulario permitidos (elige uno por instancia):`;
+      ` (${maxInstancias}). Elige el tipo que mejor comunique ESTE contenido específico — no elijas siempre ` +
+      `el mismo tipo por defecto, decide caso a caso. Tipos de subformulario permitidos (elige uno por instancia):`;
     if (depth >= 2 || allowedTypes.length === 0) {
       return `${line} (sin tipos configurados)`;
     }
