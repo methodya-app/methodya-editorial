@@ -50,6 +50,28 @@ export default withCors(async (req, res) => {
     return res.status(201).json({ multimedia_project_user: data });
   }
 
+  if (req.method === 'PUT') {
+    if (!canManage(auth, project_id)) throw new ApiError(403, 'Requiere ser Administrador o Coordinador Multimedia de este proyecto');
+    const { multimedia_project_user_id, multimedia_role_id, es_coordinador } = req.body || {};
+    if (!multimedia_project_user_id) throw new ApiError(400, 'multimedia_project_user_id es obligatorio');
+    if (!es_coordinador && !multimedia_role_id) {
+      throw new ApiError(400, 'multimedia_role_id es obligatorio (o marcar es_coordinador)');
+    }
+
+    const { data, error } = await admin
+      .from('multimedia_project_users')
+      .update({
+        es_coordinador: !!es_coordinador,
+        multimedia_role_id: es_coordinador ? null : multimedia_role_id,
+      })
+      .eq('id', multimedia_project_user_id)
+      .eq('project_id', project_id)
+      .select('id, es_coordinador, multimedia_role_id, profiles(id, nombre, apellido, email), multimedia_roles(id, nombre)')
+      .single();
+    if (error) throw new ApiError(500, error.message);
+    return res.status(200).json({ multimedia_project_user: data });
+  }
+
   if (req.method === 'DELETE') {
     if (!canManage(auth, project_id)) throw new ApiError(403, 'Requiere ser Administrador o Coordinador Multimedia de este proyecto');
     const { multimedia_project_user_id } = req.body || {};
