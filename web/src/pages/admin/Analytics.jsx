@@ -7,12 +7,15 @@ import BarChart from '../../components/analytics/BarChart.jsx';
 const fmtDate = (iso) => (iso ? new Date(iso).toISOString().slice(0, 10) : '');
 const fullName = (p) => (p ? `${p.nombre} ${p.apellido}` : '');
 
+const fmtTokens = (n) => n.toLocaleString('es-CO');
+
 export default function Analytics() {
   const [projects, setProjects] = useState([]);
   const [projectId, setProjectId] = useState('');
   const [documents, setDocuments] = useState([]);
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [usage, setUsage] = useState(null);
 
   useEffect(() => {
     api.get('/projects').then((data) => {
@@ -20,6 +23,7 @@ export default function Analytics() {
       if (data.projects.length > 0) setProjectId(data.projects[0].id);
       else setLoading(false);
     });
+    api.get('/agent-usage').then(setUsage);
   }, []);
 
   useEffect(() => {
@@ -68,6 +72,69 @@ export default function Analytics() {
           </select>
         )}
       </div>
+
+      {usage && (
+        <div className="paper-card rounded-xl p-5 space-y-4">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <h3 className="font-display font-bold text-deepViolet">Consumo de tokens del agente sintético</h3>
+            <p className="text-xs text-slate-500">
+              {usage.total.intentos} intentos de generación · {fmtTokens(usage.total.total_tokens)} tokens en total
+              ({fmtTokens(usage.total.prompt_tokens)} de entrada, {fmtTokens(usage.total.completion_tokens)} de
+              salida)
+            </p>
+          </div>
+          {usage.total.intentos === 0 ? (
+            <p className="text-sm text-slate-400">
+              Aún no se ha generado contenido con el agente sintético en ningún proyecto.
+            </p>
+          ) : (
+            <div className="grid md:grid-cols-2 gap-5">
+              <div>
+                <p className="text-xs font-semibold uppercase text-deepViolet/70 mb-2">Por proyecto</p>
+                <table className="w-full text-sm">
+                  <thead className="text-left text-xs uppercase text-deepViolet/70">
+                    <tr>
+                      <th className="p-1.5">Proyecto</th>
+                      <th className="p-1.5 text-right">Intentos</th>
+                      <th className="p-1.5 text-right">Tokens</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {usage.by_project.map((p) => (
+                      <tr key={p.id} className="border-t border-deepViolet/10">
+                        <td className="p-1.5">{p.nombre}</td>
+                        <td className="p-1.5 text-right">{p.intentos}</td>
+                        <td className="p-1.5 text-right font-semibold">{fmtTokens(p.total_tokens)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase text-deepViolet/70 mb-2">Por agente sintético</p>
+                <table className="w-full text-sm">
+                  <thead className="text-left text-xs uppercase text-deepViolet/70">
+                    <tr>
+                      <th className="p-1.5">Agente</th>
+                      <th className="p-1.5 text-right">Intentos</th>
+                      <th className="p-1.5 text-right">Tokens</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {usage.by_agent.map((a) => (
+                      <tr key={a.id} className="border-t border-deepViolet/10">
+                        <td className="p-1.5">{a.nombre}</td>
+                        <td className="p-1.5 text-right">{a.intentos}</td>
+                        <td className="p-1.5 text-right font-semibold">{fmtTokens(a.total_tokens)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {projects.length === 0 ? (
         <p className="text-slate-500 text-sm">No hay proyectos aún.</p>

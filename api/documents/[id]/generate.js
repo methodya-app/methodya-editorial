@@ -132,6 +132,9 @@ export default withCors(async (req, res) => {
       valido,
       errores: valido ? null : errors,
       modelo: generation.model,
+      prompt_tokens: generation.usage?.promptTokens ?? null,
+      completion_tokens: generation.usage?.completionTokens ?? null,
+      total_tokens: generation.usage?.totalTokens ?? null,
     });
 
     lastValues = generation.values;
