@@ -22,6 +22,9 @@ import DocumentExecute from './pages/shared/DocumentExecute.jsx';
 import MultimediaProjects from './pages/shared/MultimediaProjects.jsx';
 import MultimediaProjectWork from './pages/shared/MultimediaProjectWork.jsx';
 import MultimediaSubformDetail from './pages/shared/MultimediaSubformDetail.jsx';
+import ImplementationProjects from './pages/shared/ImplementationProjects.jsx';
+import ImplementationWork from './pages/shared/ImplementationWork.jsx';
+import ImplementationDetail from './pages/shared/ImplementationDetail.jsx';
 
 function Home() {
   const { isAdmin } = useAuth();
@@ -64,6 +67,9 @@ export default function App() {
         <Route path="/multimedia" element={<MultimediaProjects />} />
         <Route path="/multimedia/tarea/:id" element={<MultimediaSubformDetail />} />
         <Route path="/multimedia/:projectId" element={<MultimediaProjectWork />} />
+        <Route path="/implementacion" element={<ImplementationProjects />} />
+        <Route path="/implementacion/tarea/:id" element={<ImplementationDetail />} />
+        <Route path="/implementacion/:projectId" element={<ImplementationWork />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

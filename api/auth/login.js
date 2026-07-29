@@ -33,6 +33,11 @@ export default withCors(async (req, res) => {
     .select('project_id, es_coordinador, multimedia_role_id, multimedia_roles(nombre), projects(nombre, codigo, estado)')
     .eq('user_id', profile.id);
 
+  const { data: implementacionProjectRoles } = await admin
+    .from('implementacion_project_users')
+    .select('project_id, role, projects(nombre, codigo, estado)')
+    .eq('user_id', profile.id);
+
   res.status(200).json({
     access_token: data.session.access_token,
     refresh_token: data.session.refresh_token,
@@ -41,5 +46,7 @@ export default withCors(async (req, res) => {
     project_roles: projectRoles || [],
     multimedia_project_roles: multimediaProjectRoles || [],
     is_multimedia_coordinator: !!profile.is_admin || (multimediaProjectRoles || []).some((mr) => mr.es_coordinador),
+    implementacion_project_roles: implementacionProjectRoles || [],
+    is_implementacion_lider: !!profile.is_admin || (implementacionProjectRoles || []).some((r) => r.role === 'lider'),
   });
 });

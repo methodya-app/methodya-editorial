@@ -421,6 +421,35 @@ alter table public.document_generations add column if not exists total_tokens in
 
 create index if not exists idx_document_generations_document on public.document_generations(document_id);
 
+-- ---------------------------------------------------------------------
+-- 18. ÁREA DE IMPLEMENTACIÓN
+--    A diferencia del Equipo Multimedia (catálogo dinámico de roles, cada
+--    uno atado a tipos de subformulario, trabajo por INSTANCIA), acá hay
+--    exactamente 2 roles fijos y el trabajo es sobre el DOCUMENTO completo
+--    (ver document_implementations en Mongo, una fila por documento
+--    liberado). Por eso no hace falta una tabla de catálogo de roles: el
+--    rol es un enum directo en la membresía.
+-- ---------------------------------------------------------------------
+create table if not exists public.implementacion_project_users (
+  id uuid primary key default gen_random_uuid(),
+  project_id uuid not null references public.projects(id) on delete cascade,
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  role text not null check (role in ('implementador','lider')),
+  created_at timestamptz not null default now(),
+  unique(project_id, user_id, role)
+);
+
+create index if not exists idx_ipu_project on public.implementacion_project_users(project_id);
+create index if not exists idx_ipu_user on public.implementacion_project_users(user_id);
+
+-- Modo de asignación (manual/carga/aleatoria) del rol "implementador" en el
+-- proyecto (solo ese rol recibe trabajo auto-asignable; "lider" no) — una
+-- fila por proyecto, no por rol, a diferencia de multimedia_role_assignment_config.
+create table if not exists public.implementacion_assignment_config (
+  project_id uuid primary key references public.projects(id) on delete cascade,
+  modo text not null default 'manual' check (modo in ('manual','carga','aleatoria'))
+);
+
 -- =====================================================================
 -- Nota sobre RLS: en esta beta el acceso a datos se realiza EXCLUSIVAMENTE
 -- a través de las funciones serverless de Vercel usando la Service Role Key
@@ -445,6 +474,8 @@ alter table public.poblaciones_objetivo enable row level security;
 alter table public.dotacion_tipos enable row level security;
 alter table public.dotacion_referencias enable row level security;
 alter table public.document_generations enable row level security;
+alter table public.implementacion_project_users enable row level security;
+alter table public.implementacion_assignment_config enable row level security;
 -- (Sin policies = sin acceso vía anon key; solo la Service Role Key del backend puede operar)
 
 -- Nota: en versiones recientes del CLI de Supabase, las tablas nuevas ya NO se
