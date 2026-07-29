@@ -3,7 +3,12 @@ import { requireAuth, requireAdmin } from '../../_lib/auth.js';
 import { supabaseAdmin } from '../../_lib/supabaseAdmin.js';
 import { getDb, toObjectId } from '../../_lib/mongo.js';
 import { loadDocumentWithAccess } from '../../_lib/documentAccess.js';
-import { EDITABLE_STATES, validateDocumentValues, saveDocumentValues } from '../../_lib/documentData.js';
+import {
+  EDITABLE_STATES,
+  validateDocumentValues,
+  saveDocumentValues,
+  fetchSubformsLibrary,
+} from '../../_lib/documentData.js';
 import { buildContextText } from '../../_lib/parametrizacion.js';
 import { generateDocumentValues } from '../../_lib/gemini.js';
 
@@ -83,6 +88,13 @@ export default withCors(async (req, res) => {
   const form = await db.collection('forms').findOne({ _id: toObjectId(access.document.form_id) });
   if (!form) throw new ApiError(404, 'Formulario asociado no encontrado');
 
+  // Se trae una sola vez y se pasa tanto a generateDocumentValues (describe
+  // los tipos de subformulario permitidos en el prompt) como a
+  // validateDocumentValues/saveDocumentValues (valida el contenido de cada
+  // instancia), para que el prompt y la validación vean exactamente la misma
+  // biblioteca en este intento.
+  const subformsLibrary = await fetchSubformsLibrary(db);
+
   const { data: globalValidations } = await admin
     .from('global_validations')
     .select('*')
@@ -102,9 +114,15 @@ export default withCors(async (req, res) => {
       projectPoblaciones,
       projectTemas,
       projectDotacionReferencias: dotacionReferencias,
+      subformsLibrary,
     });
 
-    const errors = validateDocumentValues({ form, values: generation.values, globalValidations: globalValidations || [] });
+    const errors = validateDocumentValues({
+      form,
+      values: generation.values,
+      globalValidations: globalValidations || [],
+      subformsLibrary,
+    });
     const valido = Object.keys(errors).length === 0;
 
     await admin.from('document_generations').insert({
@@ -125,11 +143,27 @@ export default withCors(async (req, res) => {
   if (lastErrors) {
     // Guarda el mejor borrador (sin validar en firme) para que un humano lo
     // revise, en vez de bloquear al agente o dejarlo sin ningún avance.
-    await saveDocumentValues({ admin, db, document: access.document, form, values: lastValues, partial: true });
+    await saveDocumentValues({
+      admin,
+      db,
+      document: access.document,
+      form,
+      values: lastValues,
+      partial: true,
+      subformsLibrary,
+    });
     return res.status(200).json({ ok: true, needs_human_review: true, errors: lastErrors });
   }
 
-  await saveDocumentValues({ admin, db, document: access.document, form, values: lastValues, partial: false });
+  await saveDocumentValues({
+    admin,
+    db,
+    document: access.document,
+    form,
+    values: lastValues,
+    partial: false,
+    subformsLibrary,
+  });
 
   // Si el documento estaba Pendiente, el mismo criterio que el guardado
   // humano lo pasa a "En proceso" al recibir su primer contenido.

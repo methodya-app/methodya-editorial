@@ -51,6 +51,38 @@ export function validateFieldValue(field, value, globalValidations = []) {
   return errors;
 }
 
+// Valida el contenido de un campo "subform": que tenga al menos una
+// instancia si es obligatorio, y que cada instancia cumpla las reglas de
+// los campos del subformulario elegido (incluidas sus columnas de tabla
+// dinámica, vía el mismo validateFieldValue). Antes esto no se validaba en
+// absoluto -ni para humanos ni para el agente sintético-; subformsLibrary
+// = arreglo de subformularios de la biblioteca ({_id, nombre, fields}).
+export function validateSubformFieldValue(field, value, subformsLibrary = []) {
+  const errors = [];
+  const instances = Array.isArray(value?.instances) ? value.instances : [];
+
+  if (field.required && instances.length === 0) {
+    errors.push('Este campo es obligatorio.');
+    return errors;
+  }
+  if (instances.length === 0) return errors;
+
+  const subform = subformsLibrary.find((sf) => sf._id === value.subform_id);
+  if (!subform) {
+    errors.push('El tipo de subformulario seleccionado ya no existe.');
+    return errors;
+  }
+
+  instances.forEach((inst, idx) => {
+    for (const subfield of subform.fields || []) {
+      const subErrors = validateFieldValue(subfield, inst.values?.[subfield.variable], []);
+      subErrors.forEach((e) => errors.push(`Instancia ${idx + 1} (${subform.nombre}), ${subfield.label}: ${e}`));
+    }
+  });
+
+  return errors;
+}
+
 // El mensaje de error personalizado es obligatorio para cualquier campo que
 // tenga la validación activa (regex/longitud), para no mostrarle al usuario
 // el mensaje genérico de fallback.

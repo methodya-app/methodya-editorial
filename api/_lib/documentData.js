@@ -1,6 +1,17 @@
 import { randomUUID } from 'node:crypto';
 import { toObjectId } from './mongo.js';
-import { validateFieldValue, validateSubformLimits } from './validation.js';
+import { validateFieldValue, validateSubformFieldValue, validateSubformLimits } from './validation.js';
+
+// Trae la biblioteca de subformularios con "_id" ya como string (Mongo lo
+// devuelve como ObjectId; el resto del código -incluidos los valores
+// guardados en document_data- siempre lo maneja como string). La usan
+// saveDocumentValues (validación) y api/documents/[id]/generate.js
+// (descripción del prompt del agente sintético), para no repetir la
+// consulta ni el mapeo de "_id".
+export async function fetchSubformsLibrary(db) {
+  const docs = await db.collection('subforms').find({}).toArray();
+  return docs.map((sf) => ({ ...sf, _id: sf._id.toString() }));
+}
 
 // Estados en los que el Creador Experto (humano o agente sintético) puede
 // editar el contenido del documento. Lo usan tanto el guardado normal
@@ -12,17 +23,21 @@ export const EDITABLE_STATES = {
   revisor_estilo: ['Revisión Estilo'],
 };
 
-// Valida todos los campos de un formulario (el contenido interno de cada
-// instancia de subformulario todavía se valida aparte, fuera de alcance
-// beta) contra su propia regla y las validaciones globales del proyecto,
-// más los límites de cantidad de instancias por tipo de subformulario
-// definidos a nivel de todo el formulario (ver FormBuilder.jsx). Devuelve
-// un objeto { variable: [errores] }, vacío si todo calza.
-export function validateDocumentValues({ form, values, globalValidations = [] }) {
+// Valida todos los campos de un formulario -incluido el contenido interno
+// de cada instancia de subformulario (antes no se validaba en absoluto)-
+// contra su propia regla y las validaciones globales del proyecto, más los
+// límites de cantidad de instancias por tipo de subformulario definidos a
+// nivel de todo el formulario (ver FormBuilder.jsx). Devuelve un objeto
+// { variable: [errores] }, vacío si todo calza.
+export function validateDocumentValues({ form, values, globalValidations = [], subformsLibrary = [] }) {
   const allFields = form.sections.flatMap((s) => s.fields);
   const errors = {};
   for (const field of allFields) {
-    if (field.type === 'subform') continue;
+    if (field.type === 'subform') {
+      const subErrors = validateSubformFieldValue(field, values[field.variable], subformsLibrary);
+      if (subErrors.length) errors[field.variable] = subErrors;
+      continue;
+    }
     const value = values[field.variable];
     const fieldErrors = validateFieldValue(field, value, globalValidations);
     if (fieldErrors.length) errors[field.variable] = fieldErrors;
@@ -96,7 +111,7 @@ async function backfillSubformInstances({ db, document, form, values }) {
 // (api/documents/[id]/generate.js), para que ambos caminos pasen por
 // exactamente el mismo motor de validación y persistencia. Devuelve
 // { ok: false, errors } si la validación estricta falla, o { ok: true }.
-export async function saveDocumentValues({ admin, db, document, form, values, partial }) {
+export async function saveDocumentValues({ admin, db, document, form, values, partial, subformsLibrary }) {
   if (!partial) {
     const { data: globalValidations } = await admin
       .from('global_validations')
@@ -104,7 +119,13 @@ export async function saveDocumentValues({ admin, db, document, form, values, pa
       .eq('project_id', document.project_id)
       .eq('activo', true);
 
-    const errors = validateDocumentValues({ form, values, globalValidations: globalValidations || [] });
+    const library = subformsLibrary || (await fetchSubformsLibrary(db));
+    const errors = validateDocumentValues({
+      form,
+      values,
+      globalValidations: globalValidations || [],
+      subformsLibrary: library,
+    });
     if (Object.keys(errors).length > 0) {
       return { ok: false, errors };
     }
