@@ -357,6 +357,13 @@ export function FieldInput({
       );
     }
 
+    // Grupo de columnas fijas repetido en N filas (ej: escenas de un guion de
+    // video, ideas de una infografía) — a diferencia de "subform", una fila
+    // no es una tarea independiente para el equipo multimedia, es solo dato
+    // estructurado dentro de este mismo campo.
+    case 'tabla_dinamica':
+      return <DynamicTableField field={field} value={value} onChange={onChange} readOnly={readOnly} />;
+
     case 'subform':
       return (
         <SubformField
@@ -600,6 +607,104 @@ function SubformField({
           className="text-xs font-semibold text-cognitiveTeal hover:underline"
         >
           + Agregar {selectedSubform?.nombre || 'instancia'}
+        </button>
+      )}
+    </div>
+  );
+}
+
+// Valor = arreglo de filas, cada una un objeto {variable_columna: valor}. Sin
+// límite de filas salvo que el campo defina max_filas.
+function DynamicTableField({ field, value, onChange, readOnly }) {
+  const columnas = field.columnas || [];
+  const rows = Array.isArray(value) ? value : [];
+  const atMax = field.max_filas && rows.length >= Number(field.max_filas);
+
+  const addRow = () => {
+    const empty = {};
+    columnas.forEach((c) => {
+      empty[c.variable] = '';
+    });
+    onChange([...rows, empty]);
+  };
+
+  const removeRow = (idx) => onChange(rows.filter((_, i) => i !== idx));
+
+  const updateCell = (idx, variable, val) => {
+    const next = [...rows];
+    next[idx] = { ...next[idx], [variable]: val };
+    onChange(next);
+  };
+
+  if (columnas.length === 0) {
+    return <p className="text-xs text-slate-400">Esta tabla no tiene columnas configuradas.</p>;
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm border border-deepViolet/15 rounded-lg overflow-hidden">
+          <thead className="bg-deepViolet/5">
+            <tr>
+              {columnas.map((c) => (
+                <th key={c.id} className="p-2 text-left text-xs font-semibold text-deepViolet/70">
+                  {c.etiqueta}
+                </th>
+              ))}
+              {!readOnly && <th className="w-10"></th>}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row, idx) => (
+              <tr key={idx} className="border-t border-deepViolet/10">
+                {columnas.map((c) => (
+                  <td key={c.id} className="p-2 align-top">
+                    {c.tipo === 'textarea' ? (
+                      <textarea
+                        className="w-full border border-deepViolet/20 rounded-md p-1.5 text-sm"
+                        rows={2}
+                        value={row[c.variable] || ''}
+                        disabled={readOnly}
+                        onChange={(e) => updateCell(idx, c.variable, e.target.value)}
+                      />
+                    ) : (
+                      <input
+                        type="text"
+                        className="w-full border border-deepViolet/20 rounded-md p-1.5 text-sm"
+                        value={row[c.variable] || ''}
+                        disabled={readOnly}
+                        onChange={(e) => updateCell(idx, c.variable, e.target.value)}
+                      />
+                    )}
+                  </td>
+                ))}
+                {!readOnly && (
+                  <td className="p-2 align-top">
+                    <button type="button" onClick={() => removeRow(idx)} className="text-xs text-red-500 hover:underline">
+                      Quitar
+                    </button>
+                  </td>
+                )}
+              </tr>
+            ))}
+            {rows.length === 0 && (
+              <tr>
+                <td colSpan={columnas.length + (readOnly ? 0 : 1)} className="p-3 text-center text-xs text-slate-400">
+                  Sin filas todavía.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+      {!readOnly && (
+        <button
+          type="button"
+          onClick={addRow}
+          disabled={atMax}
+          className="text-xs font-semibold text-cognitiveTeal hover:underline disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          + Agregar fila{field.max_filas ? ` (máx. ${field.max_filas})` : ''}
         </button>
       )}
     </div>

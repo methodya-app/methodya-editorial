@@ -9,6 +9,7 @@ const FIELD_TYPES = [
   { value: 'checkbox', label: 'Casillas de verificación' },
   { value: 'predefined_paragraph', label: 'Párrafo predefinido' },
   { value: 'subform', label: 'Sub-formulario' },
+  { value: 'tabla_dinamica', label: 'Tabla dinámica' },
   { value: 'poblacion_objetivo', label: 'Población objetivo (del proyecto)' },
   { value: 'temas_focos', label: 'Temas y Focos (del proyecto)' },
   { value: 'dotacion', label: 'Dotación (del proyecto)' },
@@ -29,6 +30,22 @@ export default function FieldEditor({ field, onUpdate, onRemove, subformsLibrary
   const patch = (patch) => onUpdate({ ...field, ...patch });
   const patchValidation = (patch) =>
     onUpdate({ ...field, validation: { ...field.validation, ...patch } });
+
+  const addColumn = () => {
+    const n = (field.columnas || []).length + 1;
+    patch({
+      columnas: [
+        ...(field.columnas || []),
+        { id: `col_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`, etiqueta: '', variable: `columna_${n}`, tipo: 'text' },
+      ],
+    });
+  };
+  const updateColumn = (idx, updatedColumn) => {
+    const columnas = [...(field.columnas || [])];
+    columnas[idx] = updatedColumn;
+    patch({ columnas });
+  };
+  const removeColumn = (idx) => patch({ columnas: (field.columnas || []).filter((_, i) => i !== idx) });
 
   const generateRegex = async () => {
     if (!aiRule.trim()) return;
@@ -227,6 +244,45 @@ export default function FieldEditor({ field, onUpdate, onRemove, subformsLibrary
         </div>
       )}
 
+      {field.type === 'tabla_dinamica' && (
+        <div className="space-y-2 border-t border-deepViolet/10 pt-3">
+          <p className="text-xs font-bold text-deepViolet">
+            Columnas de la tabla
+            {(field.columnas || []).length === 0 && <span className="text-red-500"> *</span>}
+          </p>
+          <p className="text-xs text-slate-500">
+            Para diligenciar, se podrán agregar filas libremente (una por cada fila/idea/escena); cada columna
+            definida aquí es un dato de esa fila.
+          </p>
+          {(field.columnas || []).map((col, idx) => (
+            <TableColumnEditor
+              key={col.id}
+              column={col}
+              onUpdate={(updated) => updateColumn(idx, updated)}
+              onRemove={() => removeColumn(idx)}
+            />
+          ))}
+          {(field.columnas || []).length === 0 && (
+            <p className="text-xs text-red-500">Agrega al menos una columna.</p>
+          )}
+          <button onClick={addColumn} className="text-xs font-semibold text-cognitiveTeal hover:underline">
+            + Agregar columna
+          </button>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-0.5">
+              Máximo de filas (opcional, vacío = sin límite)
+            </label>
+            <input
+              type="number"
+              min="1"
+              className="w-32 border border-deepViolet/20 rounded-md p-1.5 text-sm"
+              value={field.max_filas || ''}
+              onChange={(e) => patch({ max_filas: e.target.value })}
+            />
+          </div>
+        </div>
+      )}
+
       {(field.type === 'text' || field.type === 'textarea' || field.type === 'number') && (
         <div className="border-t border-deepViolet/10 pt-3">
           <p className="text-xs font-bold text-deepViolet mb-1.5">
@@ -306,6 +362,158 @@ export default function FieldEditor({ field, onUpdate, onRemove, subformsLibrary
               <p className="text-xs text-red-500 mt-0.5">
                 Obligatorio mientras la validación esté activa.
               </p>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Una columna de "Tabla dinámica" puede tener su propia validación (misma
+// forma y motor que la de un campo normal), aplicada a cada celda de esa
+// columna en todas las filas.
+function TableColumnEditor({ column, onUpdate, onRemove }) {
+  const [aiRule, setAiRule] = useState(column.validation?.description || '');
+  const [generating, setGenerating] = useState(false);
+  const [showValidation, setShowValidation] = useState(!!column.validation?.enabled);
+
+  const patch = (p) => onUpdate({ ...column, ...p });
+  const patchValidation = (p) => onUpdate({ ...column, validation: { ...column.validation, ...p } });
+
+  const generateRegex = async () => {
+    if (!aiRule.trim()) return;
+    setGenerating(true);
+    try {
+      const result = await api.post('/ai/generate-regex', { description: aiRule });
+      patchValidation({
+        enabled: true,
+        description: aiRule,
+        pattern: result.pattern,
+        generated_by_ai: result.source === 'gemini',
+        mode: column.validation?.mode || 'must_match',
+      });
+    } catch (err) {
+      alert('No se pudo generar la expresión regular: ' + err.message);
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  return (
+    <div className="bg-deepViolet/5 rounded-md p-2 space-y-2">
+      <div className="flex gap-2 items-start">
+        <div className="flex-1">
+          <input
+            className={`w-full border rounded-md p-1.5 text-sm ${
+              !column.etiqueta?.trim() ? 'border-red-400' : 'border-deepViolet/20'
+            }`}
+            placeholder="Etiqueta de la columna (ej: Audio / Narración)"
+            value={column.etiqueta}
+            onChange={(e) => patch({ etiqueta: e.target.value })}
+          />
+        </div>
+        <div className="w-40">
+          <input
+            className={`w-full border rounded-md p-1.5 text-xs font-mono ${
+              !column.variable?.trim() ? 'border-red-400' : 'border-deepViolet/20'
+            }`}
+            placeholder="variable"
+            value={column.variable}
+            onChange={(e) => patch({ variable: e.target.value.replace(/\s+/g, '_') })}
+          />
+        </div>
+        <select
+          className="border border-deepViolet/20 rounded-md p-1.5 text-sm"
+          value={column.tipo}
+          onChange={(e) => patch({ tipo: e.target.value })}
+        >
+          <option value="text">Texto corto</option>
+          <option value="textarea">Párrafo</option>
+        </select>
+        <button onClick={onRemove} className="text-red-500 text-xs hover:underline mt-2 whitespace-nowrap">
+          Eliminar
+        </button>
+      </div>
+
+      <button
+        type="button"
+        onClick={() => setShowValidation((s) => !s)}
+        className="text-xs font-semibold text-cognitiveTeal hover:underline"
+      >
+        {showValidation ? '▾' : '▸'} Validación (IA / expresión regular){column.validation?.enabled && ' — activa'}
+      </button>
+
+      {showValidation && (
+        <div className="border-t border-deepViolet/10 pt-2 space-y-2">
+          <div className="flex gap-2">
+            <input
+              className="flex-1 border border-deepViolet/20 rounded-md p-1.5 text-xs"
+              placeholder="Describe la regla en lenguaje natural (ej: 'formato mm:ss')"
+              value={aiRule}
+              onChange={(e) => setAiRule(e.target.value)}
+            />
+            <button
+              onClick={generateRegex}
+              disabled={generating}
+              className="px-2 py-1 rounded-md bg-deepViolet text-white text-xs font-semibold disabled:opacity-50 whitespace-nowrap"
+            >
+              {generating ? 'Generando...' : '✨ Generar con IA'}
+            </button>
+          </div>
+          <div className="flex gap-2 items-center">
+            <input
+              className="flex-1 border border-deepViolet/20 rounded-md p-1.5 text-xs font-mono"
+              placeholder="Expresión regular (editable manualmente)"
+              value={column.validation?.pattern || ''}
+              onChange={(e) => patchValidation({ enabled: true, pattern: e.target.value })}
+            />
+            <select
+              className="border border-deepViolet/20 rounded-md p-1.5 text-xs"
+              value={column.validation?.mode || 'must_match'}
+              onChange={(e) => patchValidation({ mode: e.target.value })}
+            >
+              <option value="must_match">Debe cumplir</option>
+              <option value="must_not_match">No debe cumplir</option>
+            </select>
+            <label className="flex items-center gap-1 text-xs whitespace-nowrap">
+              <input
+                type="checkbox"
+                checked={!!column.validation?.enabled}
+                onChange={(e) => patchValidation({ enabled: e.target.checked })}
+              />
+              Activa
+            </label>
+          </div>
+          <div className="flex gap-2">
+            <input
+              type="number"
+              className="w-1/2 border border-deepViolet/20 rounded-md p-1.5 text-xs"
+              placeholder="Longitud mínima"
+              value={column.validation?.min_length || ''}
+              onChange={(e) => patchValidation({ min_length: e.target.value })}
+            />
+            <input
+              type="number"
+              className="w-1/2 border border-deepViolet/20 rounded-md p-1.5 text-xs"
+              placeholder="Longitud máxima"
+              value={column.validation?.max_length || ''}
+              onChange={(e) => patchValidation({ max_length: e.target.value })}
+            />
+          </div>
+          <div>
+            <input
+              className={`w-full border rounded-md p-1.5 text-xs ${
+                column.validation?.enabled && !column.validation?.custom_message?.trim()
+                  ? 'border-red-400'
+                  : 'border-deepViolet/20'
+              }`}
+              placeholder="Mensaje de error personalizado que verá quien diligencia"
+              value={column.validation?.custom_message || ''}
+              onChange={(e) => patchValidation({ custom_message: e.target.value })}
+            />
+            {column.validation?.enabled && !column.validation?.custom_message?.trim() && (
+              <p className="text-xs text-red-500 mt-0.5">Obligatorio mientras la validación esté activa.</p>
             )}
           </div>
         </div>
