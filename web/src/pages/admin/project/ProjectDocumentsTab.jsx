@@ -4,6 +4,7 @@ import { api } from '../../../lib/api.js';
 import StateBadge from '../../../components/StateBadge.jsx';
 import ProcessingModal from '../../../components/ProcessingModal.jsx';
 import ProjectSubformsTab from './ProjectSubformsTab.jsx';
+import { showAlert } from '../../../lib/alertModal.js';
 
 // Estados válidos para editar/restaurar un documento (todos menos
 // "Eliminado", que se maneja aparte con el botón dedicado de la papelera).
@@ -119,7 +120,7 @@ export default function ProjectDocumentsTab({ projectId, readOnly }) {
       setShowForm(false);
       load();
     } catch (err) {
-      alert('No se pudo crear: ' + err.message);
+      showAlert('No se pudo crear: ' + err.message);
     }
   };
 
@@ -128,14 +129,14 @@ export default function ProjectDocumentsTab({ projectId, readOnly }) {
     setVaciandoId(id);
     try {
       const result = await api.post(`/documents/${id}/vaciar`);
-      alert(
+      showAlert(
         result.real
           ? 'Vaciamiento ejecutado en Google Drive. Puedes verlo en el detalle del documento.'
           : 'Vaciamiento simulado ejecutado. Puedes verlo en el detalle del documento.'
       );
       load();
     } catch (err) {
-      alert(err.message);
+      showAlert(err.message);
     } finally {
       setVaciandoId(null);
     }
@@ -147,16 +148,17 @@ export default function ProjectDocumentsTab({ projectId, readOnly }) {
     try {
       const result = await api.post(`/documents/${id}/generate`);
       if (result.needs_human_review) {
-        alert(
+        showAlert(
           'El agente generó un borrador pero no logró pasar la validación tras varios intentos. ' +
-            'Quedó guardado como borrador: revísalo y corrígelo manualmente.'
+            'Quedó guardado como borrador: revísalo y corrígelo manualmente.',
+          'revision'
         );
       } else {
-        alert('Contenido generado y validado ✓. Puedes revisarlo en el detalle del documento.');
+        showAlert('Contenido generado y validado ✓. Puedes revisarlo en el detalle del documento.', 'exito');
       }
       load();
     } catch (err) {
-      alert('No se pudo generar: ' + err.message);
+      showAlert('No se pudo generar: ' + err.message, 'error');
     } finally {
       setGenerandoId(null);
     }
@@ -186,7 +188,7 @@ export default function ProjectDocumentsTab({ projectId, readOnly }) {
       setEditValues(null);
       load();
     } catch (err) {
-      alert('No se pudo guardar: ' + err.message);
+      showAlert('No se pudo guardar: ' + err.message);
     }
   };
 
@@ -198,7 +200,7 @@ export default function ProjectDocumentsTab({ projectId, readOnly }) {
       await api.put(`/documents/${d.id}`, { estado: 'Eliminado' });
       load();
     } catch (err) {
-      alert('No se pudo eliminar: ' + err.message);
+      showAlert('No se pudo eliminar: ' + err.message);
     }
   };
 
@@ -213,7 +215,7 @@ export default function ProjectDocumentsTab({ projectId, readOnly }) {
       setRestoringId(null);
       load();
     } catch (err) {
-      alert('No se pudo restaurar: ' + err.message);
+      showAlert('No se pudo restaurar: ' + err.message);
     }
   };
 

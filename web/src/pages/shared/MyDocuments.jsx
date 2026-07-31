@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { api } from '../../lib/api.js';
 import { useAuth } from '../../lib/auth.jsx';
 import StateBadge from '../../components/StateBadge.jsx';
+import { showAlert } from '../../lib/alertModal.js';
 
 // Lista de documentos del usuario dentro de un proyecto, según su(s) rol(es)
 // (Creador Experto / Revisor Pedagógico / Revisor de Estilo): los que ya
@@ -41,7 +42,7 @@ export default function MyDocuments() {
       await load();
       setTab('mios');
     } catch (err) {
-      alert('No se pudo tomar el documento: ' + err.message);
+      showAlert('No se pudo tomar el documento: ' + err.message);
     } finally {
       setClaimingId(null);
     }

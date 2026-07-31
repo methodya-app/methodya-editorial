@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './lib/auth.jsx';
 import { ProtectedRoute } from './components/ProtectedRoute.jsx';
 import Layout from './components/Layout.jsx';
+import AlertModal from './components/AlertModal.jsx';
 
 import Login from './pages/Login.jsx';
 import ProjectsList from './pages/admin/ProjectsList.jsx';
@@ -34,7 +35,9 @@ function Home() {
 
 export default function App() {
   return (
-    <Routes>
+    <>
+      <AlertModal />
+      <Routes>
       <Route path="/login" element={<Login />} />
 
       <Route element={<ProtectedRoute><Layout /></ProtectedRoute>}>
@@ -78,6 +81,7 @@ export default function App() {
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+      </Routes>
+    </>
   );
 }

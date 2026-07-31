@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../../lib/api.js';
 import FieldEditor from '../../components/form/FieldEditor.jsx';
+import { showAlert } from '../../lib/alertModal.js';
 
 function newField() {
   return {
@@ -52,7 +53,7 @@ export default function FormBuilder() {
       });
       setSavedAt(new Date());
     } catch (err) {
-      alert('No se pudo guardar: ' + err.message);
+      showAlert('No se pudo guardar: ' + err.message);
     } finally {
       setSaving(false);
     }

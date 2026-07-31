@@ -5,6 +5,7 @@ import { useAuth } from '../../lib/auth.jsx';
 import StateBadge from '../../components/StateBadge.jsx';
 import ProjectImplementationTeamTab from '../admin/project/ProjectImplementationTeamTab.jsx';
 import ProjectImplementationAssignmentTab from '../admin/project/ProjectImplementationAssignmentTab.jsx';
+import { showAlert } from '../../lib/alertModal.js';
 
 const ROLE_LABEL = { implementador: 'Implementador', lider: 'Líder de implementación' };
 
@@ -99,7 +100,7 @@ export default function ImplementationWork() {
       await api.post(`/implementations/${implementationId}/claim`);
       await load();
     } catch (err) {
-      alert('No se pudo tomar la tarea: ' + err.message);
+      showAlert('No se pudo tomar la tarea: ' + err.message);
     } finally {
       setClaimingId(null);
     }
