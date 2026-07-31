@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { api } from '../../lib/api.js';
+import { showAlert } from '../../lib/alertModal.js';
 
 const FIELD_TYPES = [
   { value: 'text', label: 'Texto corto' },
@@ -60,7 +61,7 @@ export default function FieldEditor({ field, onUpdate, onRemove, subformsLibrary
         mode: field.validation?.mode || 'must_match',
       });
     } catch (err) {
-      alert('No se pudo generar la expresión regular: ' + err.message);
+      showAlert('No se pudo generar la expresión regular: ' + err.message);
     } finally {
       setGenerating(false);
     }
@@ -394,7 +395,7 @@ function TableColumnEditor({ column, onUpdate, onRemove }) {
         mode: column.validation?.mode || 'must_match',
       });
     } catch (err) {
-      alert('No se pudo generar la expresión regular: ' + err.message);
+      showAlert('No se pudo generar la expresión regular: ' + err.message);
     } finally {
       setGenerating(false);
     }

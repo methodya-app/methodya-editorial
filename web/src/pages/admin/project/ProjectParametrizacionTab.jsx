@@ -3,6 +3,7 @@ import { api } from '../../../lib/api.js';
 import { useAuth } from '../../../lib/auth.jsx';
 import ProjectValidationsTab from './ProjectValidationsTab.jsx';
 import ProjectTemplateTab from './ProjectTemplateTab.jsx';
+import { showAlert } from '../../../lib/alertModal.js';
 
 const EMPTY = {
   estilo: { tono: '', nivel_formalidad: '', terminologia_preferida: '', terminologia_evitar: '' },
@@ -171,7 +172,7 @@ function CreatePoblacionModal({ open, onClose, onCreated }) {
       setForm({ nombre: '', edad_min: '', edad_max: '', nivel_lector: '' });
       onCreated(result.poblacion_objetivo);
     } catch (err) {
-      alert('No se pudo crear: ' + err.message);
+      showAlert('No se pudo crear: ' + err.message);
     } finally {
       setSaving(false);
     }
@@ -360,7 +361,7 @@ export default function ProjectParametrizacionTab({ projectId, project, onSaved,
     const ext = file.name.split('.').pop()?.toLowerCase();
     const mimeType = file.type || CONTEXT_MIME_BY_EXTENSION[ext];
     if (!Object.values(CONTEXT_MIME_BY_EXTENSION).includes(mimeType)) {
-      alert('Formato no soportado. Usa PDF, TXT o Markdown.');
+      showAlert('Formato no soportado. Usa PDF, TXT o Markdown.');
       if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
@@ -370,7 +371,7 @@ export default function ProjectParametrizacionTab({ projectId, project, onSaved,
       const result = await api.post('/ai/summarize-context', { file_base64: base64, mime_type: mimeType });
       update('poblacion_objetivo', 'region_contexto', result.summary);
     } catch (err) {
-      alert('No se pudo analizar el documento: ' + err.message);
+      showAlert('No se pudo analizar el documento: ' + err.message);
     } finally {
       setSummarizing(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -384,7 +385,7 @@ export default function ProjectParametrizacionTab({ projectId, project, onSaved,
       await api.put(`/projects/${projectId}/parametrizacion`, form);
       setSavedAt(new Date());
     } catch (err) {
-      alert('No se pudo guardar: ' + err.message);
+      showAlert('No se pudo guardar: ' + err.message);
     } finally {
       setSaving(false);
     }

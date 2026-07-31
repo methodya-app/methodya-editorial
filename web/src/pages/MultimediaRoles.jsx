@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api.js';
+import { showAlert } from '../lib/alertModal.js';
 
 // Catálogo global de roles multimedia (ej. "Diseñador videos multimedia"),
 // cada uno asociado a qué plantillas de subformulario puede trabajar.
@@ -39,7 +40,7 @@ export default function MultimediaRoles() {
       await load();
       setSavedAt(new Date());
     } catch (err) {
-      alert('No se pudo guardar: ' + err.message);
+      showAlert('No se pudo guardar: ' + err.message);
     }
   };
 

@@ -5,6 +5,7 @@ import { useAuth } from '../../lib/auth.jsx';
 import StateBadge from '../../components/StateBadge.jsx';
 import ProjectMultimediaTeamTab from '../admin/project/ProjectMultimediaTeamTab.jsx';
 import ProjectMultimediaAssignmentTab from '../admin/project/ProjectMultimediaAssignmentTab.jsx';
+import { showAlert } from '../../lib/alertModal.js';
 
 function AssignmentRow({ a, showClaim, onClaim, claiming }) {
   return (
@@ -101,7 +102,7 @@ export default function MultimediaProjectWork() {
       await api.post(`/subform-assignments/${assignmentId}/claim`);
       await load();
     } catch (err) {
-      alert('No se pudo tomar la tarea: ' + err.message);
+      showAlert('No se pudo tomar la tarea: ' + err.message);
     } finally {
       setClaimingId(null);
     }
