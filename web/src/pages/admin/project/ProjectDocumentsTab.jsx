@@ -19,6 +19,12 @@ const EDITABLE_STATES = [
   'Finalizado',
 ];
 
+// Estados en los que el Creador Experto (humano o agente sintético) puede
+// generar/editar contenido — mismo criterio que EDITABLE_STATES.creador en
+// api/_lib/documentData.js. Fuera de estos, "Generar con IA" no debe
+// mostrarse (el backend lo rechazaría igual, pero mostrarlo confunde).
+const CREADOR_EDITABLE_STATES = ['Pendiente', 'En proceso', 'Devuelto'];
+
 function usersByRole(projectUsers, role) {
   return projectUsers.filter((pu) => pu.role === role);
 }
@@ -574,7 +580,7 @@ export default function ProjectDocumentsTab({ projectId, readOnly }) {
                           >
                             {editingId === d.id ? 'Cancelar' : 'Editar'}
                           </button>
-                          {d.creador?.is_synthetic &&
+                          {d.creador?.is_synthetic && CREADOR_EDITABLE_STATES.includes(d.estado) &&
                             (generando[d.id] ? (
                               <span className="text-xs font-semibold text-cognitiveTeal mr-3 inline-flex items-center gap-1.5">
                                 <span className="w-3 h-3 border-2 border-cognitiveTeal/30 border-t-cognitiveTeal rounded-full animate-spin" />

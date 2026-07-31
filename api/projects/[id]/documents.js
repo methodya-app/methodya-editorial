@@ -2,6 +2,7 @@ import { withCors, ApiError } from '../../_lib/cors.js';
 import { requireAuth, requireAdmin, roleInProject } from '../../_lib/auth.js';
 import { supabaseAdmin } from '../../_lib/supabaseAdmin.js';
 import { STAGE_ROLE, autoAssignIfNeeded } from '../../_lib/groupAssignment.js';
+import { enqueueGeneration } from '../../_lib/documentGeneration.js';
 
 const DOCUMENT_COLUMNS =
   'id, codigo, estado, form_id, document_type_id, poblacion_objetivo_id, creador_id, revisor_pedagogico_id, revisor_estilo_id, vaciado_at, created_at, updated_at,' +
@@ -140,6 +141,30 @@ export default withCors(async (req, res) => {
       .eq('id', project_id)
       .single();
     await autoAssignIfNeeded(admin, data, project);
+
+    // Si el Creador Experto (el elegido al crear, o el que se acaba de
+    // auto-asignar arriba) es un agente sintético, se dispara la
+    // generación de inmediato: así el documento no se queda esperando a que
+    // un Administrador le dé clic manualmente a "Generar con IA". Se
+    // relee el documento porque autoAssignIfNeeded pudo haber cambiado
+    // creador_id sin que se refleje en la variable `data` ya insertada.
+    const { data: freshDoc } = await admin.from('documents').select('creador_id').eq('id', data.id).single();
+    if (freshDoc?.creador_id) {
+      const { data: creador } = await admin
+        .from('profiles')
+        .select('is_synthetic')
+        .eq('id', freshDoc.creador_id)
+        .single();
+      if (creador?.is_synthetic) {
+        try {
+          await enqueueGeneration({ admin, documentId: data.id });
+        } catch (err) {
+          // No debe impedir que el documento quede creado: el Administrador
+          // siempre puede disparar "Generar con IA" manualmente después.
+          console.error('No se pudo encolar la generación automática al crear el documento:', err.message);
+        }
+      }
+    }
 
     return res.status(201).json({ document: data });
   }
