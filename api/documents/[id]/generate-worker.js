@@ -16,8 +16,9 @@ const MAX_ATTEMPTS = 3;
 
 // A diferencia de generate.js (que solo encola y responde en milisegundos),
 // acá nadie está esperando con el navegador abierto: lo llama QStash, así
-// que puede tomarse el tiempo de las hasta 3 llamadas reales a Gemini.
-export const config = { maxDuration: 300 };
+// que puede tomarse el tiempo de las hasta 3 llamadas reales a Gemini. La
+// duración máxima (300s) se configura en vercel.json, no acá: este no es un
+// proyecto Next.js, y export const config solo funciona en ese framework.
 
 // Worker de la generación por IA: lo invoca QStash, no el navegador. No usa
 // requireAuth (no hay sesión de usuario en una llamada de QStash) — se
