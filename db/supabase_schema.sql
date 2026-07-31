@@ -450,6 +450,33 @@ create table if not exists public.implementacion_assignment_config (
   modo text not null default 'manual' check (modo in ('manual','carga','aleatoria'))
 );
 
+-- ---------------------------------------------------------------------
+-- 19. ENFOQUES NARRATIVOS (catálogo global, para variar el ángulo del
+--    agente sintético entre generaciones)
+--    Catálogo global (como document_types/poblaciones_objetivo): un
+--    Administrador los crea una sola vez en el menú de Configuración.
+--    Por defecto TODOS los enfoques activos aplican a TODO proyecto — no
+--    hay una tabla de vínculo por proyecto; en vez de eso, cada proyecto
+--    guarda (dentro de su parametrizacion.pedagogia.enfoques_narrativos_
+--    excluidos, ver api/_lib/parametrizacion.js) solo los ids que decidió
+--    OMITIR. Un enfoque nuevo en el catálogo queda disponible de inmediato
+--    para todos los proyectos existentes, salvo que lo excluyan.
+-- ---------------------------------------------------------------------
+create table if not exists public.enfoques_narrativos (
+  id uuid primary key default gen_random_uuid(),
+  texto text not null unique,
+  activo boolean not null default true,
+  created_at timestamptz not null default now()
+);
+
+insert into public.enfoques_narrativos (texto) values
+  ('A través de una historia o relato corto'),
+  ('A través de un experimento o actividad práctica'),
+  ('A través de una pregunta-problema que hay que resolver'),
+  ('A través de un juego o reto'),
+  ('A través de un caso real o cotidiano')
+on conflict (texto) do nothing;
+
 -- =====================================================================
 -- Nota sobre RLS: en esta beta el acceso a datos se realiza EXCLUSIVAMENTE
 -- a través de las funciones serverless de Vercel usando la Service Role Key
@@ -476,6 +503,7 @@ alter table public.dotacion_referencias enable row level security;
 alter table public.document_generations enable row level security;
 alter table public.implementacion_project_users enable row level security;
 alter table public.implementacion_assignment_config enable row level security;
+alter table public.enfoques_narrativos enable row level security;
 -- (Sin policies = sin acceso vía anon key; solo la Service Role Key del backend puede operar)
 
 -- Nota: en versiones recientes del CLI de Supabase, las tablas nuevas ya NO se

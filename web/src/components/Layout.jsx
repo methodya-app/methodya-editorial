@@ -70,6 +70,7 @@ export default function Layout() {
     '/admin/parrafos',
     '/admin/poblaciones-objetivo',
     '/admin/dotacion',
+    '/admin/enfoques-narrativos',
     '/admin/parametros',
   ].some((p) => location.pathname.startsWith(p));
 
@@ -103,6 +104,7 @@ export default function Layout() {
                 <NavLink to="/admin/parrafos" className={dropdownLinkClass}>Párrafos predefinidos</NavLink>
                 <NavLink to="/admin/poblaciones-objetivo" className={dropdownLinkClass}>Poblaciones Objetivo</NavLink>
                 <NavLink to="/admin/dotacion" className={dropdownLinkClass}>Dotación</NavLink>
+                <NavLink to="/admin/enfoques-narrativos" className={dropdownLinkClass}>Enfoques narrativos</NavLink>
                 <NavLink to="/admin/parametros" className={dropdownLinkClass}>Parámetros</NavLink>
               </NavDropdown>
             </>

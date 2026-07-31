@@ -6,7 +6,7 @@ import ProjectTemplateTab from './ProjectTemplateTab.jsx';
 
 const EMPTY = {
   estilo: { tono: '', nivel_formalidad: '', terminologia_preferida: '', terminologia_evitar: '' },
-  pedagogia: { enfoque: '', lineamientos: '' },
+  pedagogia: { enfoque: '', lineamientos: '', enfoques_narrativos_excluidos: [] },
   temas_focos: { temas: [], descripcion: '' },
   poblacion_objetivo: { poblacion_ids: [], region_contexto: '', idiomas: [] },
   dotacion: { referencia_ids: [] },
@@ -283,6 +283,7 @@ export default function ProjectParametrizacionTab({ projectId, project, onSaved,
   const [createPoblacionOpen, setCreatePoblacionOpen] = useState(false);
   const [allPopulations, setAllPopulations] = useState([]);
   const [allDotacionReferencias, setAllDotacionReferencias] = useState([]);
+  const [allEnfoquesNarrativos, setAllEnfoquesNarrativos] = useState([]);
   const [summarizing, setSummarizing] = useState(false);
   const fileInputRef = useRef(null);
 
@@ -291,10 +292,11 @@ export default function ProjectParametrizacionTab({ projectId, project, onSaved,
 
   const load = async () => {
     setLoading(true);
-    const [data, populationsData, dotacionData] = await Promise.all([
+    const [data, populationsData, dotacionData, enfoquesData] = await Promise.all([
       api.get(`/projects/${projectId}/parametrizacion`),
       api.get('/poblaciones-objetivo'),
       api.get('/dotacion-referencias'),
+      api.get('/enfoques-narrativos'),
     ]);
     const p = data.parametrizacion || {};
     setForm({
@@ -306,6 +308,7 @@ export default function ProjectParametrizacionTab({ projectId, project, onSaved,
     });
     setAllPopulations(populationsData.poblaciones_objetivo);
     setAllDotacionReferencias(dotacionData.dotacion_referencias);
+    setAllEnfoquesNarrativos(enfoquesData.enfoques_narrativos);
     setLoading(false);
   };
 
@@ -329,6 +332,19 @@ export default function ProjectParametrizacionTab({ projectId, project, onSaved,
     setAllPopulations((prev) => [...prev, poblacion].sort((a, b) => a.nombre.localeCompare(b.nombre)));
     addPoblacion(poblacion.id);
     setCreatePoblacionOpen(false);
+  };
+
+  // Los enfoques narrativos son al revés de poblaciones/dotación: por
+  // defecto TODOS los del catálogo aplican a este proyecto, así que lo que
+  // se guarda es la lista de excepciones (los que el proyecto excluyó), no
+  // una lista de inclusión.
+  const toggleEnfoqueNarrativo = (id, incluido) => {
+    const excluidos = form.pedagogia.enfoques_narrativos_excluidos;
+    update(
+      'pedagogia',
+      'enfoques_narrativos_excluidos',
+      incluido ? excluidos.filter((x) => x !== id) : [...excluidos, id]
+    );
   };
 
   const addDotacionReferencia = (id) => {
@@ -470,6 +486,36 @@ export default function ProjectParametrizacionTab({ projectId, project, onSaved,
                     placeholder="Guía para humanos, no bloquea nada (para bloquear, usa Validaciones globales)"
                     className={inputCls}
                   />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 mb-1">Enfoques narrativos</label>
+                  <p className="text-xs text-slate-400 mb-2">
+                    El agente sintético elige uno al azar en cada generación, para que documentos distintos
+                    sobre un mismo tema no salgan siempre con la misma estructura. Desmarca los que no
+                    quieras usar en este proyecto (el catálogo completo se administra en Configuración &gt;
+                    Enfoques narrativos).
+                  </p>
+                  <div className="space-y-1.5">
+                    {allEnfoquesNarrativos.map((e) => {
+                      const incluido = !form.pedagogia.enfoques_narrativos_excluidos.includes(e.id);
+                      return (
+                        <label key={e.id} className="flex items-center gap-2 text-sm">
+                          <input
+                            type="checkbox"
+                            disabled={!canEdit}
+                            checked={incluido}
+                            onChange={() => toggleEnfoqueNarrativo(e.id, incluido)}
+                          />
+                          {e.texto}
+                        </label>
+                      );
+                    })}
+                    {allEnfoquesNarrativos.length === 0 && (
+                      <p className="text-sm text-slate-400">
+                        No hay enfoques narrativos en el catálogo aún (Configuración &gt; Enfoques narrativos).
+                      </p>
+                    )}
+                  </div>
                 </div>
               </>
             )}
