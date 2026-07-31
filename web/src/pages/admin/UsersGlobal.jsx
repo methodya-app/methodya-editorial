@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useState } from 'react';
 import { api } from '../../lib/api.js';
 import { useAuth } from '../../lib/auth.jsx';
+import { showAlert } from '../../lib/alertModal.js';
 
 export default function UsersGlobal() {
   const { profile } = useAuth();
@@ -52,7 +53,7 @@ export default function UsersGlobal() {
       setShowForm(false);
       load();
     } catch (err) {
-      alert('No se pudo crear: ' + err.message);
+      showAlert('No se pudo crear: ' + err.message);
     }
   };
 
@@ -88,7 +89,7 @@ export default function UsersGlobal() {
       setEditValues(null);
       load();
     } catch (err) {
-      alert('No se pudo guardar: ' + err.message);
+      showAlert('No se pudo guardar: ' + err.message);
     }
   };
 
@@ -97,7 +98,7 @@ export default function UsersGlobal() {
       await api.put(`/users/${u.id}`, { activo: !u.activo });
       load();
     } catch (err) {
-      alert('No se pudo actualizar: ' + err.message);
+      showAlert('No se pudo actualizar: ' + err.message);
     }
   };
 
@@ -109,7 +110,7 @@ export default function UsersGlobal() {
       await api.del(`/users/${u.id}`);
       load();
     } catch (err) {
-      alert('No se pudo eliminar: ' + err.message);
+      showAlert('No se pudo eliminar: ' + err.message);
     }
   };
 
@@ -118,7 +119,7 @@ export default function UsersGlobal() {
       await api.put(`/users/${id}`, { eliminado: false, activo: true });
       load();
     } catch (err) {
-      alert('No se pudo restaurar: ' + err.message);
+      showAlert('No se pudo restaurar: ' + err.message);
     }
   };
 

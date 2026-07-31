@@ -2,6 +2,7 @@ import { Fragment, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../../lib/api.js';
 import StateBadge from '../../components/StateBadge.jsx';
+import { showAlert } from '../../lib/alertModal.js';
 
 // Estados válidos para editar/restaurar un proyecto (todos menos
 // "Eliminado", que se maneja aparte con el botón dedicado de la papelera).
@@ -66,7 +67,7 @@ export default function ProjectsList() {
       setEditValues(null);
       load();
     } catch (err) {
-      alert('No se pudo guardar: ' + err.message);
+      showAlert('No se pudo guardar: ' + err.message);
     }
   };
 
@@ -78,7 +79,7 @@ export default function ProjectsList() {
       await api.put(`/projects/${p.id}`, { estado: 'Eliminado' });
       load();
     } catch (err) {
-      alert('No se pudo eliminar: ' + err.message);
+      showAlert('No se pudo eliminar: ' + err.message);
     }
   };
 
@@ -93,7 +94,7 @@ export default function ProjectsList() {
       setRestoringId(null);
       load();
     } catch (err) {
-      alert('No se pudo restaurar: ' + err.message);
+      showAlert('No se pudo restaurar: ' + err.message);
     }
   };
 

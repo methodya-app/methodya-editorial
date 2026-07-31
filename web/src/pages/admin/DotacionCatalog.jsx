@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../../lib/api.js';
+import { showAlert } from '../../lib/alertModal.js';
 
 const CONTEXT_FILE_ACCEPT = '.pdf,.txt,.md';
 const CONTEXT_MIME_BY_EXTENSION = { pdf: 'application/pdf', txt: 'text/plain', md: 'text/markdown' };
@@ -114,7 +115,7 @@ export default function DotacionCatalog() {
       await loadTipos();
       selectTipo(result.dotacion_tipo);
     } catch (err) {
-      alert('No se pudo crear: ' + err.message);
+      showAlert('No se pudo crear: ' + err.message);
     }
   };
 
@@ -130,7 +131,7 @@ export default function DotacionCatalog() {
       }
       loadTipos();
     } catch (err) {
-      alert('No se pudo retirar: ' + err.message);
+      showAlert('No se pudo retirar: ' + err.message);
     }
   };
 
@@ -139,7 +140,7 @@ export default function DotacionCatalog() {
     const ext = file.name.split('.').pop()?.toLowerCase();
     const mimeType = file.type || CONTEXT_MIME_BY_EXTENSION[ext];
     if (!Object.values(CONTEXT_MIME_BY_EXTENSION).includes(mimeType)) {
-      alert('Formato no soportado. Usa PDF, TXT o Markdown.');
+      showAlert('Formato no soportado. Usa PDF, TXT o Markdown.');
       if (fileInputRef.current) fileInputRef.current.value = '';
       return;
     }
@@ -149,7 +150,7 @@ export default function DotacionCatalog() {
       const result = await api.post('/ai/extract-dotacion-specs', { file_base64: base64, mime_type: mimeType });
       setPendingSpecs(result);
     } catch (err) {
-      alert('No se pudo analizar el documento: ' + err.message);
+      showAlert('No se pudo analizar el documento: ' + err.message);
     } finally {
       setImporting(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -171,7 +172,7 @@ export default function DotacionCatalog() {
       await loadReferencias(selectedTipo.id);
       selectReferencia(result.dotacion_referencia);
     } catch (err) {
-      alert('No se pudo crear: ' + err.message);
+      showAlert('No se pudo crear: ' + err.message);
     }
   };
 
@@ -201,7 +202,7 @@ export default function DotacionCatalog() {
       await loadReferencias(selectedTipo.id);
       setSavedAt(new Date());
     } catch (err) {
-      alert('No se pudo guardar: ' + err.message);
+      showAlert('No se pudo guardar: ' + err.message);
     } finally {
       setSaving(false);
     }
@@ -217,7 +218,7 @@ export default function DotacionCatalog() {
       }
       loadReferencias(selectedTipo.id);
     } catch (err) {
-      alert('No se pudo retirar: ' + err.message);
+      showAlert('No se pudo retirar: ' + err.message);
     }
   };
 

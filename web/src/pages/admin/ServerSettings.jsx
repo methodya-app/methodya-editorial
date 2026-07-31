@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api } from '../../lib/api.js';
+import { showAlert } from '../../lib/alertModal.js';
 
 // Módulo de Parámetros del Servidor (punto 2.3): la clave de la API de IA
 // (Gemini) y el endpoint del backend, editables en caliente sin redeploy.
@@ -72,7 +73,7 @@ export default function ServerSettings() {
 
   const connectGoogle = async () => {
     if (!googleClientId || (!googleClientSecret && !settings.google_oauth_client_secret)) {
-      alert('Primero guarda el Client ID y Client Secret de Google OAuth.');
+      showAlert('Primero guarda el Client ID y Client Secret de Google OAuth.');
       return;
     }
     setConnecting(true);

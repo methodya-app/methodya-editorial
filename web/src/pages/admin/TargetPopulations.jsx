@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../../lib/api.js';
+import { showAlert } from '../../lib/alertModal.js';
 
 const EMPTY_CREATE = { nombre: '', edad_min: '', edad_max: '', nivel_lector: '' };
 
@@ -37,7 +38,7 @@ export default function TargetPopulations() {
       await load();
       setSelected(result.poblacion_objetivo);
     } catch (err) {
-      alert('No se pudo crear: ' + err.message);
+      showAlert('No se pudo crear: ' + err.message);
     }
   };
 
@@ -60,9 +61,9 @@ export default function TargetPopulations() {
       const detalle = omitidas.length
         ? '\n\nNo se importaron:\n' + omitidas.map((o) => `• ${o.nombre}: ${o.motivo}`).join('\n')
         : '';
-      alert(`${creadas.length} población(es) importada(s) ✓${detalle}`);
+      showAlert(`${creadas.length} población(es) importada(s) ✓${detalle}`);
     } catch (err) {
-      alert('No se pudo importar: ' + err.message);
+      showAlert('No se pudo importar: ' + err.message);
     } finally {
       setImporting(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -85,7 +86,7 @@ export default function TargetPopulations() {
       await load();
       setSavedAt(new Date());
     } catch (err) {
-      alert('No se pudo guardar: ' + err.message);
+      showAlert('No se pudo guardar: ' + err.message);
     } finally {
       setSaving(false);
     }
@@ -100,7 +101,7 @@ export default function TargetPopulations() {
       if (selected?.id === id) setSelected(null);
       load();
     } catch (err) {
-      alert('No se pudo retirar: ' + err.message);
+      showAlert('No se pudo retirar: ' + err.message);
     }
   };
 

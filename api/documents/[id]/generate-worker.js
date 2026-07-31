@@ -11,8 +11,37 @@ import { buildContextText } from '../../_lib/parametrizacion.js';
 import { generateDocumentValues } from '../../_lib/gemini.js';
 import { pickRandom } from '../../_lib/multimediaAssignment.js';
 import { assertWorkerSecret } from '../../_lib/qstash.js';
+import { autoAssignIfNeeded } from '../../_lib/groupAssignment.js';
 
 const MAX_ATTEMPTS = 3;
+
+// El Creador Experto es el agente sintético: nunca inicia sesión, así que
+// nadie puede darle clic a "Enviar a revisión pedagógica" en su nombre. Por
+// eso el worker mismo hace esa transición al terminar, tanto si el
+// contenido pasó la validación como si no (queda como borrador para que el
+// Revisor Pedagógico lo corrija, en vez de esperar a que un Administrador
+// lo empuje manualmente). Mismo mecanismo que la acción "send_to_pedagogica"
+// de submit.js: mueve el estado, dejarlo en el historial y auto-asigna
+// revisor según la configuración del proyecto.
+async function sendToRevisionPedagogica({ admin, document, agentId, nota }) {
+  const { data: updated, error } = await admin
+    .from('documents')
+    .update({ estado: 'Revisión Pedagógica', updated_at: new Date().toISOString() })
+    .eq('id', document.id)
+    .select()
+    .single();
+  if (error) throw new ApiError(500, error.message);
+
+  await admin.from('document_history').insert({
+    document_id: document.id,
+    estado_anterior: document.estado,
+    estado_nuevo: 'Revisión Pedagógica',
+    actor_id: agentId,
+    nota,
+  });
+
+  await autoAssignIfNeeded(admin, updated, document.projects);
+}
 
 // A diferencia de generate.js (que solo encola y responde en milisegundos),
 // acá nadie está esperando con el navegador abierto: lo llama QStash, así
@@ -48,7 +77,7 @@ export default withCors(async (req, res) => {
     // el agente o la parametrización del proyecto.
     const { data: document, error: docError } = await admin
       .from('documents')
-      .select('*, projects(parametrizacion)')
+      .select('*, projects(parametrizacion, asignacion_revisor_pedagogico, criterio_carga)')
       .eq('id', id)
       .single();
     if (docError || !document) throw new ApiError(404, 'Documento no encontrado');
@@ -174,6 +203,12 @@ export default withCors(async (req, res) => {
         partial: true,
         subformsLibrary,
       });
+      await sendToRevisionPedagogica({
+        admin,
+        document,
+        agentId: agent.id,
+        nota: `Generado por el agente sintético, pero no pasó la validación tras ${MAX_ATTEMPTS} intentos. Requiere corrección manual.`,
+      });
       await markJob({ estado: 'completado', needs_human_review: true, errores: lastErrors });
       return res.status(200).json({ ok: true, needs_human_review: true });
     }
@@ -188,9 +223,12 @@ export default withCors(async (req, res) => {
       subformsLibrary,
     });
 
-    if (document.estado === 'Pendiente') {
-      await admin.from('documents').update({ estado: 'En proceso' }).eq('id', id);
-    }
+    await sendToRevisionPedagogica({
+      admin,
+      document,
+      agentId: agent.id,
+      nota: 'Generado y validado por el agente sintético.',
+    });
 
     await markJob({ estado: 'completado', needs_human_review: false, errores: null });
     return res.status(200).json({ ok: true, needs_human_review: false });

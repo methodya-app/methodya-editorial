@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../../../lib/api.js';
+import { showAlert } from '../../../lib/alertModal.js';
 
 export default function ProjectFormsTab({ projectId, readOnly }) {
   const [tab, setTab] = useState('formularios'); // 'formularios' | 'papelera'
@@ -61,7 +62,7 @@ export default function ProjectFormsTab({ projectId, readOnly }) {
       setEditValues(null);
       load();
     } catch (err) {
-      alert('No se pudo guardar: ' + err.message);
+      showAlert('No se pudo guardar: ' + err.message);
     }
   };
 
@@ -73,7 +74,7 @@ export default function ProjectFormsTab({ projectId, readOnly }) {
       await api.del(`/forms/${f._id}`);
       load();
     } catch (err) {
-      alert('No se pudo eliminar: ' + err.message);
+      showAlert('No se pudo eliminar: ' + err.message);
     }
   };
 
@@ -82,7 +83,7 @@ export default function ProjectFormsTab({ projectId, readOnly }) {
       await api.put(`/forms/${id}`, { eliminado: false });
       load();
     } catch (err) {
-      alert('No se pudo restaurar: ' + err.message);
+      showAlert('No se pudo restaurar: ' + err.message);
     }
   };
 

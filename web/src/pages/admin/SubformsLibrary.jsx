@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../lib/api.js';
 import FieldEditor from '../../components/form/FieldEditor.jsx';
+import { showAlert } from '../../lib/alertModal.js';
 
 function newField() {
   return {
@@ -56,7 +57,7 @@ export default function SubformsLibrary() {
       await load();
       setSelected(result.subform);
     } catch (err) {
-      alert('No se pudo crear: ' + err.message);
+      showAlert('No se pudo crear: ' + err.message);
     }
   };
 
@@ -71,7 +72,7 @@ export default function SubformsLibrary() {
       await load();
       setSavedAt(new Date());
     } catch (err) {
-      alert('No se pudo guardar: ' + err.message);
+      showAlert('No se pudo guardar: ' + err.message);
     }
   };
 
