@@ -477,6 +477,31 @@ insert into public.enfoques_narrativos (texto) values
   ('A través de un caso real o cotidiano')
 on conflict (texto) do nothing;
 
+-- ---------------------------------------------------------------------
+-- 20. TRABAJOS DE GENERACIÓN POR IA (cola asíncrona)
+--    La generación con el agente sintético dejó de ser una llamada HTTP
+--    síncrona: api/documents/[id]/generate.js solo encola (Upstash QStash)
+--    y responde de inmediato; el trabajo real lo hace después
+--    generate-worker.js, sin nadie esperando con el navegador abierto.
+--    Esta tabla es el estado visible de ESA corrida completa (una fila por
+--    clic en "Generar con IA"), distinta de document_generations, que
+--    guarda cada uno de los 3 intentos internos contra Gemini.
+--    El frontend consulta la fila más reciente por documento (polling a
+--    generate-status.js) para saber si sigue en curso o ya terminó.
+-- ---------------------------------------------------------------------
+create table if not exists public.document_generation_jobs (
+  id uuid primary key default gen_random_uuid(),
+  document_id uuid not null references public.documents(id) on delete cascade,
+  estado text not null default 'encolado' check (estado in ('encolado','procesando','completado','error')),
+  needs_human_review boolean,
+  errores jsonb,
+  error_message text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists idx_dgj_document on public.document_generation_jobs(document_id, created_at desc);
+
 -- =====================================================================
 -- Nota sobre RLS: en esta beta el acceso a datos se realiza EXCLUSIVAMENTE
 -- a través de las funciones serverless de Vercel usando la Service Role Key
@@ -504,6 +529,7 @@ alter table public.document_generations enable row level security;
 alter table public.implementacion_project_users enable row level security;
 alter table public.implementacion_assignment_config enable row level security;
 alter table public.enfoques_narrativos enable row level security;
+alter table public.document_generation_jobs enable row level security;
 -- (Sin policies = sin acceso vía anon key; solo la Service Role Key del backend puede operar)
 
 -- Nota: en versiones recientes del CLI de Supabase, las tablas nuevas ya NO se
