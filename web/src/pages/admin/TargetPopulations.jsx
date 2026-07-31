@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api } from '../../lib/api.js';
 
 const EMPTY_CREATE = { nombre: '', edad_min: '', edad_max: '', nivel_lector: '' };
@@ -12,6 +12,8 @@ export default function TargetPopulations() {
   const [createForm, setCreateForm] = useState(EMPTY_CREATE);
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState(null);
+  const [importing, setImporting] = useState(false);
+  const fileInputRef = useRef(null);
 
   const load = async () => {
     const data = await api.get('/poblaciones-objetivo');
@@ -36,6 +38,34 @@ export default function TargetPopulations() {
       setSelected(result.poblacion_objetivo);
     } catch (err) {
       alert('No se pudo crear: ' + err.message);
+    }
+  };
+
+  // Importación en lote desde un archivo .json (un arreglo de objetos). Se
+  // aceptan tanto los nombres internos de los campos como los encabezados
+  // legibles del archivo ("Grado Escolar", "Edad mínima", etc.); el backend
+  // los normaliza. Las que ya existen se omiten en vez de fallar, así que
+  // se puede volver a subir el mismo archivo sin duplicar nada.
+  const importar = async (file) => {
+    if (!file) return;
+    setImporting(true);
+    try {
+      const texto = await file.text();
+      const poblaciones = JSON.parse(texto);
+      if (!Array.isArray(poblaciones)) {
+        throw new Error('El archivo debe contener una lista (un arreglo JSON) de poblaciones.');
+      }
+      const { creadas, omitidas } = await api.post('/poblaciones-objetivo', { poblaciones });
+      await load();
+      const detalle = omitidas.length
+        ? '\n\nNo se importaron:\n' + omitidas.map((o) => `• ${o.nombre}: ${o.motivo}`).join('\n')
+        : '';
+      alert(`${creadas.length} población(es) importada(s) ✓${detalle}`);
+    } catch (err) {
+      alert('No se pudo importar: ' + err.message);
+    } finally {
+      setImporting(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -123,6 +153,29 @@ export default function TargetPopulations() {
             + Crear
           </button>
         </form>
+
+        <div className="paper-card rounded-xl p-3 space-y-1.5">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".json,application/json"
+            onChange={(e) => importar(e.target.files?.[0])}
+            disabled={importing}
+            className="hidden"
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={importing}
+            className="w-full px-3 py-2 rounded-lg bg-deepViolet text-white text-sm font-semibold disabled:opacity-50"
+          >
+            {importing ? 'Importando...' : '⬆ Importar desde JSON'}
+          </button>
+          <p className="text-xs text-slate-400">
+            Una lista JSON con las columnas Grado Escolar, Edad mínima, Edad máxima, Nivel Lector,
+            Desarrollo Cognitivo, Pensamiento Lógico / STEAM y Socioemocional y Comunicación. Las que ya
+            existan se omiten, así que puedes volver a subir el mismo archivo sin duplicar.
+          </p>
+        </div>
 
         <div className="paper-card rounded-xl divide-y divide-deepViolet/10">
           {populations.map((p) => (
