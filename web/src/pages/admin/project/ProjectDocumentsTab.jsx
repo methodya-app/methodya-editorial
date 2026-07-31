@@ -30,7 +30,8 @@ function usersByRole(projectUsers, role) {
 }
 
 export default function ProjectDocumentsTab({ projectId, readOnly }) {
-  const [tab, setTab] = useState('documentos'); // 'documentos' | 'subformularios' | 'papelera'
+  const [tab, setTab] = useState('documentos'); // 'documentos' | 'subformularios'
+  const [docSubTab, setDocSubTab] = useState('activos'); // 'activos' | 'papelera' — solo dentro de "Documentos"
   const [documents, setDocuments] = useState([]);
   const [trashedDocuments, setTrashedDocuments] = useState([]);
   const [forms, setForms] = useState([]);
@@ -282,17 +283,9 @@ export default function ProjectDocumentsTab({ projectId, readOnly }) {
           >
             Subformularios
           </button>
-          <button
-            onClick={() => setTab('papelera')}
-            className={`px-3 py-1.5 rounded-md text-sm font-semibold ${
-              tab === 'papelera' ? 'bg-white shadow text-deepViolet' : 'text-deepViolet/60'
-            }`}
-          >
-            🗑️ Papelera {trashedDocuments.length > 0 && `(${trashedDocuments.length})`}
-          </button>
         </div>
 
-        {!readOnly && tab === 'documentos' && (
+        {!readOnly && tab === 'documentos' && docSubTab === 'activos' && (
           <button
             onClick={() => setShowForm((s) => !s)}
             disabled={projectPoblaciones.length === 0}
@@ -308,7 +301,28 @@ export default function ProjectDocumentsTab({ projectId, readOnly }) {
         )}
       </div>
 
-      {!readOnly && tab === 'documentos' && projectPoblaciones.length === 0 && (
+      {tab === 'documentos' && (
+        <div className="flex gap-1 bg-deepViolet/5 rounded-lg p-1 w-fit">
+          <button
+            onClick={() => setDocSubTab('activos')}
+            className={`px-3 py-1.5 rounded-md text-sm font-semibold ${
+              docSubTab === 'activos' ? 'bg-white shadow text-deepViolet' : 'text-deepViolet/60'
+            }`}
+          >
+            Documentos
+          </button>
+          <button
+            onClick={() => setDocSubTab('papelera')}
+            className={`px-3 py-1.5 rounded-md text-sm font-semibold ${
+              docSubTab === 'papelera' ? 'bg-white shadow text-deepViolet' : 'text-deepViolet/60'
+            }`}
+          >
+            🗑️ Papelera {trashedDocuments.length > 0 && `(${trashedDocuments.length})`}
+          </button>
+        </div>
+      )}
+
+      {!readOnly && tab === 'documentos' && docSubTab === 'activos' && projectPoblaciones.length === 0 && (
         <div className="text-sm text-warmAmber-hover bg-warmAmber-light rounded-lg p-3">
           Este proyecto no tiene poblaciones objetivo configuradas. Ve a la pestaña{' '}
           <strong>Parametrización → Población objetivo</strong> y selecciona al menos una antes de crear
@@ -316,7 +330,7 @@ export default function ProjectDocumentsTab({ projectId, readOnly }) {
         </div>
       )}
 
-      {showForm && tab === 'documentos' && (
+      {showForm && tab === 'documentos' && docSubTab === 'activos' && (
         <form onSubmit={createDocument} className="paper-card rounded-xl p-4 grid sm:grid-cols-3 gap-3">
           <div>
             <label className="block text-xs font-semibold text-slate-500 mb-1">Código</label>
@@ -430,7 +444,7 @@ export default function ProjectDocumentsTab({ projectId, readOnly }) {
         </form>
       )}
 
-      {!loading && tab === 'documentos' && (
+      {!loading && tab === 'documentos' && docSubTab === 'activos' && (
         <div className="paper-card rounded-xl p-3 grid sm:grid-cols-3 lg:grid-cols-6 gap-2 items-end">
           <div>
             <label className="block text-[11px] font-semibold text-slate-500 mb-1">Código</label>
@@ -533,7 +547,7 @@ export default function ProjectDocumentsTab({ projectId, readOnly }) {
         <p className="text-slate-500 text-sm">Cargando...</p>
       ) : tab === 'subformularios' ? (
         <ProjectSubformsTab projectId={projectId} />
-      ) : tab === 'documentos' ? (
+      ) : docSubTab === 'activos' ? (
         <div className="paper-card rounded-xl overflow-hidden overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-deepViolet/5 text-left text-xs uppercase text-deepViolet/70">
