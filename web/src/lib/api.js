@@ -28,6 +28,7 @@ async function request(path, { method = 'GET', body } = {}) {
   const resp = await fetch(`${BASE_URL}/api${path}`, {
     method,
     headers,
+    cache: 'no-store',
     body: body !== undefined ? JSON.stringify(body) : undefined,
   });
 

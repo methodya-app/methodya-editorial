@@ -9,6 +9,8 @@ import { loadDocumentWithAccess } from '../../_lib/documentAccess.js';
 export default withCors(async (req, res) => {
   if (req.method !== 'GET') throw new ApiError(405, 'Método no permitido');
 
+  res.setHeader('Cache-Control', 'no-store');
+
   const auth = await requireAuth(req);
   requireAdmin(auth);
   const { id } = req.query;
