@@ -53,7 +53,11 @@ export default function ProjectDocumentsTab({ projectId, readOnly }) {
   const [restoringId, setRestoringId] = useState(null);
   const [restoreEstado, setRestoreEstado] = useState('Pendiente');
   const [vaciandoId, setVaciandoId] = useState(null);
-  const [generandoId, setGenerandoId] = useState(null);
+  // Generaciones por IA en curso, por documento: { [documentId]: 'encolado' |
+  // 'procesando' }. Es un mapa (no un id único) porque la generación es
+  // asíncrona y desatendida: se pueden disparar varias a la vez sin que se
+  // bloqueen entre sí ni bloqueen el resto de la pantalla.
+  const [generando, setGenerando] = useState({});
 
   const [filterCodigo, setFilterCodigo] = useState('');
   const [filterTipo, setFilterTipo] = useState('');
@@ -149,26 +153,59 @@ export default function ProjectDocumentsTab({ projectId, readOnly }) {
     }
   };
 
+  // La generación ya no se espera con la petición abierta: el backend
+  // encola y responde de inmediato, y acá se sondea el estado del trabajo
+  // hasta que termine. Así el Administrador puede lanzar varias y dejarlas
+  // corriendo sin quedarse en la pantalla.
   const generar = async (id) => {
-    if (generandoId) return; // ya hay una generación en curso, ignora el doble clic
-    setGenerandoId(id);
+    if (generando[id]) return; // ya hay una generación en curso PARA ESTE documento
+    setGenerando((g) => ({ ...g, [id]: 'encolado' }));
     try {
-      const result = await api.post(`/documents/${id}/generate`);
-      if (result.needs_human_review) {
-        showAlert(
-          'El agente generó un borrador pero no logró pasar la validación tras varios intentos. ' +
-            'Quedó guardado como borrador: revísalo y corrígelo manualmente.',
-          'revision'
-        );
-      } else {
-        showAlert('Contenido generado y validado ✓. Puedes revisarlo en el detalle del documento.', 'exito');
-      }
-      load();
+      await api.post(`/documents/${id}/generate`);
+      pollGeneracion(id);
     } catch (err) {
-      showAlert('No se pudo generar: ' + err.message, 'error');
-    } finally {
-      setGenerandoId(null);
+      setGenerando((g) => {
+        const next = { ...g };
+        delete next[id];
+        return next;
+      });
+      showAlert('No se pudo generar: ' + err.message);
     }
+  };
+
+  const pollGeneracion = (id) => {
+    const interval = setInterval(async () => {
+      try {
+        const { job } = await api.get(`/documents/${id}/generate-status`);
+        if (!job || job.estado === 'encolado' || job.estado === 'procesando') {
+          setGenerando((g) => ({ ...g, [id]: job?.estado || 'encolado' }));
+          return;
+        }
+
+        clearInterval(interval);
+        setGenerando((g) => {
+          const next = { ...g };
+          delete next[id];
+          return next;
+        });
+
+        if (job.estado === 'error') {
+          showAlert('No se pudo generar: ' + (job.error_message || 'error desconocido'), 'error');
+        } else if (job.needs_human_review) {
+          showAlert(
+            'El agente generó un borrador pero no logró pasar la validación tras varios intentos. ' +
+              'Se envió a Revisión Pedagógica para que se corrija allí.',
+            'revision'
+          );
+        } else {
+          showAlert('Contenido generado y validado ✓. Se envió a Revisión Pedagógica.', 'exito');
+        }
+        load();
+      } catch {
+        // Un fallo puntual del sondeo (red, sesión) no debe cortar el
+        // seguimiento: el worker sigue trabajando por su cuenta.
+      }
+    }, 3000);
   };
 
   const startEdit = (d) => {
@@ -557,15 +594,20 @@ export default function ProjectDocumentsTab({ projectId, readOnly }) {
                           >
                             {editingId === d.id ? 'Cancelar' : 'Editar'}
                           </button>
-                          {d.creador?.is_synthetic && CREADOR_EDITABLE_STATES.includes(d.estado) && (
-                            <button
-                              onClick={() => generar(d.id)}
-                              disabled={!!generandoId}
-                              className="text-xs font-semibold text-cognitiveTeal hover:underline mr-3 disabled:opacity-50"
-                            >
-                              ✨ Generar con IA
-                            </button>
-                          )}
+                          {d.creador?.is_synthetic && CREADOR_EDITABLE_STATES.includes(d.estado) &&
+                            (generando[d.id] ? (
+                              <span className="text-xs font-semibold text-cognitiveTeal mr-3 inline-flex items-center gap-1.5">
+                                <span className="w-3 h-3 border-2 border-cognitiveTeal/30 border-t-cognitiveTeal rounded-full animate-spin" />
+                                {generando[d.id] === 'procesando' ? 'Generando...' : 'En cola...'}
+                              </span>
+                            ) : (
+                              <button
+                                onClick={() => generar(d.id)}
+                                className="text-xs font-semibold text-cognitiveTeal hover:underline mr-3"
+                              >
+                                ✨ Generar con IA
+                              </button>
+                            ))}
                           <button
                             onClick={() => vaciar(d.id)}
                             disabled={!!vaciandoId}
@@ -766,11 +808,10 @@ export default function ProjectDocumentsTab({ projectId, readOnly }) {
         </div>
       )}
 
+      {/* La generación por IA ya no bloquea la pantalla (corre en cola,
+          desatendida): su progreso se muestra en la fila de cada documento.
+          El vaciamiento sí sigue siendo síncrono y bloqueante. */}
       <ProcessingModal open={!!vaciandoId} message="Vaciando documento... esto puede tardar unos segundos." />
-      <ProcessingModal
-        open={!!generandoId}
-        message="El agente sintético está generando el contenido... esto puede tardar hasta un minuto."
-      />
     </div>
   );
 }
