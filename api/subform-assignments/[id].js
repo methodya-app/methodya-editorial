@@ -26,14 +26,36 @@ export async function loadAssignmentWithAccess(auth, id) {
 }
 
 export default withCors(async (req, res) => {
-  if (req.method !== 'GET') throw new ApiError(405, 'Método no permitido');
   const auth = await requireAuth(req);
   const { id } = req.query;
-  const { assignment, isCoordinator, isMine, canClaim } = await loadAssignmentWithAccess(auth, id);
-  return res.status(200).json({
-    assignment: { ...assignment, id: assignment._id.toString(), _id: undefined },
-    is_coordinator: isCoordinator,
-    is_mine: isMine,
-    can_claim: canClaim,
-  });
+
+  if (req.method === 'GET') {
+    const { assignment, isCoordinator, isMine, canClaim } = await loadAssignmentWithAccess(auth, id);
+    return res.status(200).json({
+      assignment: { ...assignment, id: assignment._id.toString(), _id: undefined },
+      is_coordinator: isCoordinator,
+      is_mine: isMine,
+      can_claim: canClaim,
+    });
+  }
+
+  // Edición administrativa: título y reasignación de rol/persona, aparte
+  // del ciclo normal de estados (transition.js) y de tomar la tarea
+  // (claim.js). Solo el Coordinador Multimedia/Administrador del proyecto.
+  if (req.method === 'PUT') {
+    const { db, assignment, isCoordinator } = await loadAssignmentWithAccess(auth, id);
+    if (!isCoordinator) throw new ApiError(403, 'Requiere ser Coordinador Multimedia o Administrador');
+
+    const { titulo, multimedia_role_id, assigned_user_id } = req.body || {};
+    const updates = { updated_at: new Date() };
+    if (titulo !== undefined) updates.titulo = titulo || null;
+    if (multimedia_role_id !== undefined) updates.multimedia_role_id = multimedia_role_id;
+    if (assigned_user_id !== undefined) updates.assigned_user_id = assigned_user_id || null;
+
+    await db.collection('subform_assignments').updateOne({ _id: assignment._id }, { $set: updates });
+    const updated = await db.collection('subform_assignments').findOne({ _id: assignment._id });
+    return res.status(200).json({ assignment: { ...updated, id: updated._id.toString(), _id: undefined } });
+  }
+
+  throw new ApiError(405, 'Método no permitido');
 });
