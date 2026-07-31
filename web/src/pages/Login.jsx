@@ -28,11 +28,7 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center bg-deepViolet-bg bg-deepViolet px-4">
       <div className="paper-card w-full max-w-sm rounded-2xl p-8">
         <div className="text-center mb-6">
-          <div className="w-14 h-14 rounded-2xl bg-deepViolet mx-auto flex items-center justify-center mb-3">
-            <span className="font-display font-extrabold text-empatheticLinen text-xl">M</span>
-          </div>
-          <h1 className="font-display font-extrabold text-deepViolet text-xl">METHODYA</h1>
-          <p className="text-xs text-warmAmber-hover">El puente empático hacia el aprendizaje real</p>
+          <img src="/logo.png" alt="METHODYA" className="w-48 mx-auto" />
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
