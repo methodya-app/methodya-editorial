@@ -3,7 +3,7 @@ import { requireAuth, requireAdmin } from '../../_lib/auth.js';
 import { supabaseAdmin } from '../../_lib/supabaseAdmin.js';
 import { loadDocumentWithAccess } from '../../_lib/documentAccess.js';
 import { EDITABLE_STATES } from '../../_lib/documentData.js';
-import { qstashClient, workerUrl } from '../../_lib/qstash.js';
+import { enqueueGeneration } from '../../_lib/documentGeneration.js';
 
 // Agente Creador Sintético: ENCOLA la generación de contenido y responde de
 // inmediato. El trabajo real (hasta 3 llamadas a Gemini, que pueden tardar
@@ -44,38 +44,7 @@ export default withCors(async (req, res) => {
     throw new ApiError(400, 'El documento no tiene una población objetivo asignada');
   }
 
-  if (!process.env.QSTASH_TOKEN || !process.env.PUBLIC_BACKEND_URL || !process.env.GENERATE_WORKER_SECRET) {
-    throw new ApiError(
-      500,
-      'Falta configurar la cola de generación (QSTASH_TOKEN, PUBLIC_BACKEND_URL y GENERATE_WORKER_SECRET).'
-    );
-  }
+  const { job, alreadyRunning } = await enqueueGeneration({ admin, documentId: id });
 
-  const { data: job, error: jobError } = await admin
-    .from('document_generation_jobs')
-    .insert({ document_id: id, estado: 'encolado' })
-    .select()
-    .single();
-  if (jobError) throw new ApiError(500, jobError.message);
-
-  try {
-    await qstashClient().publishJSON({
-      url: workerUrl(`/api/documents/${id}/generate-worker`),
-      body: { job_id: job.id },
-    });
-  } catch (err) {
-    // Si no se pudo encolar, el job no debe quedar colgado en "encolado"
-    // para siempre: se marca el error para que el frontend lo muestre.
-    await admin
-      .from('document_generation_jobs')
-      .update({
-        estado: 'error',
-        error_message: `No se pudo encolar: ${err.message}`,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', job.id);
-    throw new ApiError(502, `No se pudo encolar la generación: ${err.message}`);
-  }
-
-  return res.status(202).json({ ok: true, job_id: job.id, estado: 'encolado' });
+  return res.status(202).json({ ok: true, job_id: job.id, estado: job.estado, already_running: alreadyRunning });
 });
