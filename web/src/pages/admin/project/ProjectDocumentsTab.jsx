@@ -187,11 +187,11 @@ export default function ProjectDocumentsTab({ projectId, readOnly }) {
         } else if (job.needs_human_review) {
           showAlert(
             'El agente generó un borrador pero no logró pasar la validación tras varios intentos. ' +
-              'Quedó guardado como borrador: revísalo y corrígelo manualmente.',
+              'Se envió a Revisión Pedagógica para que se corrija allí.',
             'revision'
           );
         } else {
-          showAlert('Contenido generado y validado ✓. Puedes revisarlo en el detalle del documento.', 'exito');
+          showAlert('Contenido generado y validado ✓. Se envió a Revisión Pedagógica.', 'exito');
         }
         load();
       } catch {
