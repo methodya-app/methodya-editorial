@@ -33,6 +33,12 @@ export function validateParametrizacionShape(body) {
     else {
       if (!isString(pedagogia.enfoque)) errors.push('pedagogia.enfoque debe ser texto');
       if (!isString(pedagogia.lineamientos)) errors.push('pedagogia.lineamientos debe ser texto');
+      // Ids de enfoques_narrativos (catálogo global) que este proyecto
+      // decidió OMITIR — por defecto (arreglo vacío/ausente) todos los
+      // enfoques activos del catálogo aplican a este proyecto.
+      if (!isStringArray(pedagogia.enfoques_narrativos_excluidos)) {
+        errors.push('pedagogia.enfoques_narrativos_excluidos debe ser una lista de ids');
+      }
     }
   }
 

@@ -11,6 +11,7 @@ import {
 } from '../../_lib/documentData.js';
 import { buildContextText } from '../../_lib/parametrizacion.js';
 import { generateDocumentValues } from '../../_lib/gemini.js';
+import { pickRandom } from '../../_lib/multimediaAssignment.js';
 
 const MAX_ATTEMPTS = 3;
 
@@ -79,6 +80,22 @@ export default withCors(async (req, res) => {
   }
   const projectTemas = parametrizacion.temas_focos?.temas || [];
 
+  // Elige un enfoque narrativo al azar (entre los activos del catálogo que
+  // este proyecto no excluyó) para ESTE documento — así, si se generan
+  // varios documentos con el mismo formulario/agente/proyecto, cada uno
+  // arranca desde un ángulo distinto en vez de converger siempre a la
+  // misma estructura. Uno solo por documento (no por intento de reintento):
+  // es una decisión de contenido, no algo que deba cambiar si un intento
+  // falla la validación.
+  const excludedEnfoqueIds = parametrizacion.pedagogia?.enfoques_narrativos_excluidos || [];
+  const { data: enfoquesNarrativosData } = await admin
+    .from('enfoques_narrativos')
+    .select('id, texto')
+    .eq('activo', true);
+  const enfoquesDisponibles = (enfoquesNarrativosData || []).filter((e) => !excludedEnfoqueIds.includes(e.id));
+  const enfoqueNarrativo =
+    enfoquesDisponibles.length > 0 ? pickRandom(enfoquesDisponibles.map((e) => e.texto)) : null;
+
   const contextText = buildContextText(parametrizacion, {
     poblaciones: [poblacionDelDocumento],
     dotacionReferencias,
@@ -115,6 +132,7 @@ export default withCors(async (req, res) => {
       projectTemas,
       projectDotacionReferencias: dotacionReferencias,
       subformsLibrary,
+      enfoqueNarrativo,
     });
 
     const errors = validateDocumentValues({
