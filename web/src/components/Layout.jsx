@@ -78,8 +78,8 @@ export default function Layout() {
     <div className="min-h-screen flex flex-col">
       <header className="bg-deepViolet px-6 py-3 flex flex-wrap items-center justify-between gap-3 shadow-md">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-empatheticLinen flex items-center justify-center">
-            <span className="font-display font-extrabold text-deepViolet">M</span>
+          <div className="w-10 h-10 rounded-xl bg-empatheticLinen flex items-center justify-center overflow-hidden">
+            <img src="/logo-icon.png" alt="METHODYA" className="w-8 h-8 object-contain" />
           </div>
           <div>
             <h1 className="font-display font-extrabold text-empatheticLinen tracking-wide text-lg leading-none">
