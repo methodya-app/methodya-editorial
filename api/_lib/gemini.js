@@ -376,6 +376,7 @@ export async function generateDocumentValues({
   projectTemas = [],
   projectDotacionReferencias = [],
   subformsLibrary = [],
+  enfoqueNarrativo,
 }) {
   const apiKey = await resolveGeminiKey();
   const model = modelOverride || process.env.GEMINI_MODEL || 'gemini-2.5-flash';
@@ -416,6 +417,12 @@ export async function generateDocumentValues({
     'voz y expertise.\n\n' +
     (personaPrompt ? `TU VOZ/EXPERTISE: ${personaPrompt}\n\n` : '') +
     (contextText ? `CONTEXTO DEL PROYECTO Y DEL DOCUMENTO:\n${contextText}\n\n` : '') +
+    (enfoqueNarrativo
+      ? `ENFOQUE NARRATIVO PARA ESTE DOCUMENTO EN PARTICULAR: ${enfoqueNarrativo}. Desarrolla el contenido ` +
+        'construido alrededor de este enfoque (no lo menciones de forma literal, que se note en cómo está ' +
+        'escrito). Esto es clave si ya existen otros documentos sobre un tema parecido: con este enfoque, el ' +
+        'resultado debe sentirse distinto a una explicación genérica del tema.\n\n'
+      : '') +
     `CAMPOS DEL FORMULARIO A DILIGENCIAR:\n${fieldsSchema}` +
     errorsSection +
     '\n\nResponde ÚNICAMENTE un JSON válido (sin markdown, sin texto extra) con una clave por cada variable ' +

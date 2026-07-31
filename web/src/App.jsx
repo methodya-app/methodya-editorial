@@ -15,6 +15,7 @@ import ParagraphsLibrary from './pages/admin/ParagraphsLibrary.jsx';
 import ServerSettings from './pages/admin/ServerSettings.jsx';
 import TargetPopulations from './pages/admin/TargetPopulations.jsx';
 import DotacionCatalog from './pages/admin/DotacionCatalog.jsx';
+import NarrativeApproaches from './pages/admin/NarrativeApproaches.jsx';
 import MultimediaRoles from './pages/MultimediaRoles.jsx';
 import MyProjects from './pages/shared/MyProjects.jsx';
 import MyDocuments from './pages/shared/MyDocuments.jsx';
@@ -55,6 +56,10 @@ export default function App() {
         <Route
           path="/admin/dotacion"
           element={<ProtectedRoute adminOnly><DotacionCatalog /></ProtectedRoute>}
+        />
+        <Route
+          path="/admin/enfoques-narrativos"
+          element={<ProtectedRoute adminOnly><NarrativeApproaches /></ProtectedRoute>}
         />
         <Route
           path="/multimedia-roles"
