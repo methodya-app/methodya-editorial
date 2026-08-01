@@ -4,6 +4,7 @@ import { toCsv, downloadCsv } from '../../lib/csv.js';
 import StateBadge from '../../components/StateBadge.jsx';
 import BarChart from '../../components/analytics/BarChart.jsx';
 import DocumentPreviewModal from '../../components/DocumentPreviewModal.jsx';
+import SubformPreviewModal from '../../components/SubformPreviewModal.jsx';
 
 const fmtDate = (iso) => (iso ? new Date(iso).toISOString().slice(0, 10) : '');
 const fullName = (p) => (p ? `${p.nombre} ${p.apellido}` : '');
@@ -241,6 +242,243 @@ function DocumentsListSection({ documents, onExportCsv }) {
   );
 }
 
+// Lista de subformularios liberados al equipo multimedia del proyecto (una
+// fila por instancia/tarea), con filtros — versión orientada a
+// subformularios de la sección anterior, para la pestaña "Multimedia".
+function MultimediaSubformsSection({ assignments, documents, multimediaRoles, teamMembers, onExportCsv }) {
+  const [previewSubformId, setPreviewSubformId] = useState(null);
+  const [previewDocId, setPreviewDocId] = useState(null);
+  const [filterCodigo, setFilterCodigo] = useState('');
+  const [filterTipo, setFilterTipo] = useState('');
+  const [filterEstado, setFilterEstado] = useState('');
+  const [filterPoblacion, setFilterPoblacion] = useState('');
+  const [filterUsuario, setFilterUsuario] = useState('');
+  const [filterRol, setFilterRol] = useState('');
+
+  const poblacionByDocId = new Map(documents.map((d) => [d.id, d.poblaciones_objetivo?.nombre || '']));
+  const roleName = (id) => multimediaRoles.find((r) => r.id === id)?.nombre || '—';
+  const assignedName = (userId) => {
+    const m = teamMembers.find((tm) => tm.profiles?.id === userId);
+    return m ? `${m.profiles.nombre} ${m.profiles.apellido}` : 'Sin asignar';
+  };
+
+  const rows = assignments.map((a) => ({
+    ...a,
+    poblacion_objetivo_nombre: poblacionByDocId.get(a.document_id) || '',
+    rol_nombre: roleName(a.multimedia_role_id),
+    usuario_nombre: assignedName(a.assigned_user_id),
+  }));
+
+  const tipos = [...new Set(rows.map((r) => r.subform_nombre).filter(Boolean))].sort();
+  const estados = [...new Set(rows.map((r) => r.estado))].sort();
+  const poblaciones = [...new Set(rows.map((r) => r.poblacion_objetivo_nombre).filter(Boolean))].sort();
+  const roles = [...new Set(rows.map((r) => r.rol_nombre).filter((n) => n !== '—'))].sort();
+  const usuarios = [...new Set(rows.map((r) => r.usuario_nombre).filter((n) => n !== 'Sin asignar'))].sort();
+
+  const hasActiveFilters =
+    filterCodigo || filterTipo || filterEstado || filterPoblacion || filterUsuario || filterRol;
+  const clearFilters = () => {
+    setFilterCodigo('');
+    setFilterTipo('');
+    setFilterEstado('');
+    setFilterPoblacion('');
+    setFilterUsuario('');
+    setFilterRol('');
+  };
+
+  const filteredRows = rows.filter((r) => {
+    if (filterCodigo && !(r.subform_codigo || '').toLowerCase().includes(filterCodigo.toLowerCase())) return false;
+    if (filterTipo && r.subform_nombre !== filterTipo) return false;
+    if (filterEstado && r.estado !== filterEstado) return false;
+    if (filterPoblacion && r.poblacion_objetivo_nombre !== filterPoblacion) return false;
+    if (filterUsuario && r.usuario_nombre !== filterUsuario) return false;
+    if (filterRol && r.rol_nombre !== filterRol) return false;
+    return true;
+  });
+
+  return (
+    <div className="paper-card rounded-xl p-5">
+      <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+        <h3 className="font-display font-bold text-deepViolet">
+          Subformularios liberados a multimedia ({filteredRows.length}
+          {filteredRows.length !== rows.length ? ` de ${rows.length}` : ''})
+        </h3>
+        <button
+          onClick={() => onExportCsv(filteredRows)}
+          disabled={filteredRows.length === 0}
+          className="px-3 py-1.5 rounded-lg bg-cognitiveTeal text-white text-xs font-semibold disabled:opacity-50"
+        >
+          ⬇ Descargar CSV
+        </button>
+      </div>
+
+      {rows.length > 0 && (
+        <div className="grid sm:grid-cols-3 lg:grid-cols-6 gap-2 items-end mb-3">
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-500 mb-1">Código subformulario</label>
+            <input
+              value={filterCodigo}
+              onChange={(e) => setFilterCodigo(e.target.value)}
+              placeholder="Buscar..."
+              className="w-full border border-deepViolet/20 rounded-lg p-1.5 text-xs"
+            />
+          </div>
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-500 mb-1">Tipo de subformulario</label>
+            <select
+              value={filterTipo}
+              onChange={(e) => setFilterTipo(e.target.value)}
+              className="w-full border border-deepViolet/20 rounded-lg p-1.5 text-xs"
+            >
+              <option value="">Todos</option>
+              {tipos.map((t) => (
+                <option key={t} value={t}>
+                  {t}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-500 mb-1">Estado</label>
+            <select
+              value={filterEstado}
+              onChange={(e) => setFilterEstado(e.target.value)}
+              className="w-full border border-deepViolet/20 rounded-lg p-1.5 text-xs"
+            >
+              <option value="">Todos</option>
+              {estados.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-500 mb-1">Población objetivo</label>
+            <select
+              value={filterPoblacion}
+              onChange={(e) => setFilterPoblacion(e.target.value)}
+              className="w-full border border-deepViolet/20 rounded-lg p-1.5 text-xs"
+            >
+              <option value="">Todas</option>
+              {poblaciones.map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-500 mb-1">Rol asignado</label>
+            <select
+              value={filterRol}
+              onChange={(e) => setFilterRol(e.target.value)}
+              className="w-full border border-deepViolet/20 rounded-lg p-1.5 text-xs"
+            >
+              <option value="">Todos</option>
+              {roles.map((r) => (
+                <option key={r} value={r}>
+                  {r}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex gap-2 items-end">
+            <div className="flex-1">
+              <label className="block text-[11px] font-semibold text-slate-500 mb-1">Usuario asignado</label>
+              <select
+                value={filterUsuario}
+                onChange={(e) => setFilterUsuario(e.target.value)}
+                className="w-full border border-deepViolet/20 rounded-lg p-1.5 text-xs"
+              >
+                <option value="">Todos</option>
+                {usuarios.map((u) => (
+                  <option key={u} value={u}>
+                    {u}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {hasActiveFilters && (
+              <button
+                onClick={clearFilters}
+                className="text-xs font-semibold text-red-500 hover:underline whitespace-nowrap pb-1.5"
+              >
+                Limpiar
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead className="bg-deepViolet/5 text-left text-xs uppercase text-deepViolet/70">
+            <tr>
+              <th className="p-2">Código subformulario</th>
+              <th className="p-2">Código documento</th>
+              <th className="p-2">Tipo de subformulario</th>
+              <th className="p-2">Estado</th>
+              <th className="p-2">Usuario asignado</th>
+              <th className="p-2">Población objetivo</th>
+              <th className="p-2">Rol asignado</th>
+              <th className="p-2">Fecha de asignación</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredRows.map((r) => (
+              <tr key={r.id} className="border-t border-deepViolet/10">
+                <td className="p-2 font-mono text-xs">
+                  <button onClick={() => setPreviewSubformId(r.id)} className="text-cognitiveTeal hover:underline">
+                    {r.subform_codigo || '(ver)'}
+                  </button>
+                </td>
+                <td className="p-2 font-mono text-xs">
+                  <button
+                    onClick={() => setPreviewDocId(r.document_id)}
+                    className="text-cognitiveTeal hover:underline"
+                  >
+                    {r.document_codigo}
+                  </button>
+                </td>
+                <td className="p-2 text-xs">{r.subform_nombre}</td>
+                <td className="p-2">
+                  <StateBadge estado={r.estado} />
+                </td>
+                <td className="p-2 text-xs">{r.usuario_nombre}</td>
+                <td className="p-2 text-xs">{r.poblacion_objetivo_nombre || '—'}</td>
+                <td className="p-2 text-xs">{r.rol_nombre}</td>
+                <td className="p-2 text-xs">{fmtDate(r.released_at || r.created_at)}</td>
+              </tr>
+            ))}
+            {rows.length === 0 && (
+              <tr>
+                <td colSpan={8} className="p-6 text-center text-slate-400">
+                  No hay subformularios liberados a multimedia en este proyecto.
+                </td>
+              </tr>
+            )}
+            {rows.length > 0 && filteredRows.length === 0 && (
+              <tr>
+                <td colSpan={8} className="p-6 text-center text-slate-400">
+                  Ningún subformulario coincide con el filtro.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <SubformPreviewModal
+        open={!!previewSubformId}
+        assignmentId={previewSubformId}
+        onClose={() => setPreviewSubformId(null)}
+      />
+      <DocumentPreviewModal open={!!previewDocId} documentId={previewDocId} onClose={() => setPreviewDocId(null)} />
+    </div>
+  );
+}
+
 export default function Analytics() {
   const [projects, setProjects] = useState([]);
   const [projectId, setProjectId] = useState('');
@@ -249,6 +487,9 @@ export default function Analytics() {
   const [analytics, setAnalytics] = useState(null);
   const [multimediaAnalytics, setMultimediaAnalytics] = useState(null);
   const [implementationAnalytics, setImplementationAnalytics] = useState(null);
+  const [subformAssignments, setSubformAssignments] = useState([]);
+  const [multimediaRolesCatalog, setMultimediaRolesCatalog] = useState([]);
+  const [multimediaTeam, setMultimediaTeam] = useState([]);
   const [loading, setLoading] = useState(true);
   const [usage, setUsage] = useState(null);
 
@@ -269,11 +510,17 @@ export default function Analytics() {
       api.get(`/projects/${projectId}/analytics`),
       api.get(`/projects/${projectId}/multimedia-analytics`),
       api.get(`/projects/${projectId}/implementation-analytics`),
-    ]).then(([docsData, analyticsData, multimediaData, implementationData]) => {
+      api.get(`/subform-assignments?project_id=${projectId}&all=1`),
+      api.get('/multimedia-roles'),
+      api.get(`/projects/${projectId}/multimedia-team`),
+    ]).then(([docsData, analyticsData, multimediaData, implementationData, subformAssignmentsData, rolesData, teamData]) => {
       setDocuments(docsData.documents);
       setAnalytics(analyticsData);
       setMultimediaAnalytics(multimediaData);
       setImplementationAnalytics(implementationData);
+      setSubformAssignments(subformAssignmentsData.assignments);
+      setMultimediaRolesCatalog(rolesData.multimedia_roles);
+      setMultimediaTeam(teamData.multimedia_project_users);
       setLoading(false);
     });
   }, [projectId]);
@@ -293,6 +540,21 @@ export default function Analytics() {
       { label: 'Vaciado', value: (d) => fmtDate(d.vaciado_at) },
     ]);
     downloadCsv(`${project?.codigo || 'proyecto'}-documentos.csv`, csv);
+  };
+
+  const exportSubformsCsv = (rows) => {
+    const project = projects.find((p) => p.id === projectId);
+    const csv = toCsv(rows, [
+      { label: 'Código subformulario', value: (r) => r.subform_codigo || '' },
+      { label: 'Código documento', value: (r) => r.document_codigo },
+      { label: 'Tipo de subformulario', value: (r) => r.subform_nombre },
+      { label: 'Estado', value: (r) => r.estado },
+      { label: 'Usuario asignado', value: (r) => r.usuario_nombre },
+      { label: 'Población objetivo', value: (r) => r.poblacion_objetivo_nombre },
+      { label: 'Rol asignado', value: (r) => r.rol_nombre },
+      { label: 'Fecha de asignación', value: (r) => fmtDate(r.released_at || r.created_at) },
+    ]);
+    downloadCsv(`${project?.codigo || 'proyecto'}-subformularios-multimedia.csv`, csv);
   };
 
   return (
@@ -458,7 +720,13 @@ export default function Analytics() {
                     </div>
                   </div>
 
-                  <DocumentsListSection documents={documents} onExportCsv={exportCsv} />
+                  <MultimediaSubformsSection
+                    assignments={subformAssignments}
+                    documents={documents}
+                    multimediaRoles={multimediaRolesCatalog}
+                    teamMembers={multimediaTeam}
+                    onExportCsv={exportSubformsCsv}
+                  />
                 </div>
               )}
 
