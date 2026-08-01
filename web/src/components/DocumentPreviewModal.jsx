@@ -3,24 +3,29 @@ import { api } from '../lib/api.js';
 import StateBadge from './StateBadge.jsx';
 import FormRenderer from './form/FormRenderer.jsx';
 
-// Vista de solo lectura del documento completo asociado a una tarea
-// multimedia, para dar contexto de lo que se va a crear.
-export default function DocumentPreviewModal({ open, onClose, assignmentId }) {
+// Vista de solo lectura del documento completo. Sirve para dos casos: dar
+// contexto de una tarea multimedia (assignmentId) o ver un documento
+// directamente desde cualquier listado administrativo (documentId) — cada
+// uno usa su propio endpoint de vista previa, pero el mismo modal.
+export default function DocumentPreviewModal({ open, onClose, assignmentId, documentId }) {
   const [data, setData] = useState(null);
   const [subformsLibrary, setSubformsLibrary] = useState([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!open || !assignmentId) return;
+    if (!open || (!assignmentId && !documentId)) return;
     setLoading(true);
     setData(null);
-    Promise.all([api.get(`/subform-assignments/${assignmentId}/document-preview`), api.get('/subforms')])
+    const endpoint = assignmentId
+      ? `/subform-assignments/${assignmentId}/document-preview`
+      : `/documents/${documentId}/preview`;
+    Promise.all([api.get(endpoint), api.get('/subforms')])
       .then(([preview, subforms]) => {
         setData(preview);
         setSubformsLibrary(subforms.subforms);
       })
       .finally(() => setLoading(false));
-  }, [open, assignmentId]);
+  }, [open, assignmentId, documentId]);
 
   if (!open) return null;
 

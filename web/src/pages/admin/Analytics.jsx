@@ -3,6 +3,7 @@ import { api } from '../../lib/api.js';
 import { toCsv, downloadCsv } from '../../lib/csv.js';
 import StateBadge from '../../components/StateBadge.jsx';
 import BarChart from '../../components/analytics/BarChart.jsx';
+import DocumentPreviewModal from '../../components/DocumentPreviewModal.jsx';
 
 const fmtDate = (iso) => (iso ? new Date(iso).toISOString().slice(0, 10) : '');
 const fullName = (p) => (p ? `${p.nombre} ${p.apellido}` : '');
@@ -34,6 +35,7 @@ function uniqueOptions(documents, idKey, getLabel) {
 // misma posición fija) para tener siempre a mano el detalle documento por
 // documento sin importar qué panel de gráficas se esté viendo.
 function DocumentsListSection({ documents, onExportCsv }) {
+  const [previewDocId, setPreviewDocId] = useState(null);
   const [filterCodigo, setFilterCodigo] = useState('');
   const [filterEstado, setFilterEstado] = useState('');
   const [filterPoblacion, setFilterPoblacion] = useState('');
@@ -198,7 +200,11 @@ function DocumentsListSection({ documents, onExportCsv }) {
           <tbody>
             {filteredDocuments.map((d) => (
               <tr key={d.id} className="border-t border-deepViolet/10">
-                <td className="p-2 font-mono text-xs">{d.codigo}</td>
+                <td className="p-2 font-mono text-xs">
+                  <button onClick={() => setPreviewDocId(d.id)} className="text-cognitiveTeal hover:underline">
+                    {d.codigo}
+                  </button>
+                </td>
                 <td className="p-2">
                   <StateBadge estado={d.estado} />
                 </td>
@@ -225,6 +231,12 @@ function DocumentsListSection({ documents, onExportCsv }) {
           </tbody>
         </table>
       </div>
+
+      <DocumentPreviewModal
+        open={!!previewDocId}
+        documentId={previewDocId}
+        onClose={() => setPreviewDocId(null)}
+      />
     </div>
   );
 }
