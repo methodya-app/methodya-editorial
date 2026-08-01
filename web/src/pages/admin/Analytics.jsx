@@ -15,41 +15,194 @@ const TABS = [
   { key: 'consumo-ia', label: 'Consumo IA' },
 ];
 
-// Lista plana de los documentos del proyecto seleccionado, con descarga en
-// CSV — se repite al final de las 4 pestañas (mismo contenido, misma
-// posición fija) para tener siempre a mano el detalle documento por
+// Opciones únicas para un filtro (id + etiqueta), extraídas de los propios
+// documentos — evita depender de llamadas aparte a /projects/:id/users o
+// /poblaciones-objetivo solo para poblar un <select>.
+function uniqueOptions(documents, idKey, getLabel) {
+  const byId = new Map();
+  for (const d of documents) {
+    const id = d[idKey];
+    if (!id || byId.has(id)) continue;
+    const label = getLabel(d);
+    if (label) byId.set(id, label);
+  }
+  return [...byId.entries()].sort((a, b) => a[1].localeCompare(b[1]));
+}
+
+// Lista plana de los documentos del proyecto seleccionado, con filtros y
+// descarga en CSV — se repite al final de las 4 pestañas (mismo contenido,
+// misma posición fija) para tener siempre a mano el detalle documento por
 // documento sin importar qué panel de gráficas se esté viendo.
 function DocumentsListSection({ documents, onExportCsv }) {
+  const [filterCodigo, setFilterCodigo] = useState('');
+  const [filterEstado, setFilterEstado] = useState('');
+  const [filterPoblacion, setFilterPoblacion] = useState('');
+  const [filterCreador, setFilterCreador] = useState('');
+  const [filterRevisorPedagogico, setFilterRevisorPedagogico] = useState('');
+  const [filterRevisorEstilo, setFilterRevisorEstilo] = useState('');
+
+  const estados = [...new Set(documents.map((d) => d.estado))].sort();
+  const poblaciones = uniqueOptions(documents, 'poblacion_objetivo_id', (d) => d.poblaciones_objetivo?.nombre);
+  const creadores = uniqueOptions(documents, 'creador_id', (d) => fullName(d.creador));
+  const revisoresPedagogicos = uniqueOptions(documents, 'revisor_pedagogico_id', (d) => fullName(d.revisor_pedagogico));
+  const revisoresEstilo = uniqueOptions(documents, 'revisor_estilo_id', (d) => fullName(d.revisor_estilo));
+
+  const hasActiveFilters =
+    filterCodigo || filterEstado || filterPoblacion || filterCreador || filterRevisorPedagogico || filterRevisorEstilo;
+  const clearFilters = () => {
+    setFilterCodigo('');
+    setFilterEstado('');
+    setFilterPoblacion('');
+    setFilterCreador('');
+    setFilterRevisorPedagogico('');
+    setFilterRevisorEstilo('');
+  };
+
+  const filteredDocuments = documents.filter((d) => {
+    if (filterCodigo && !d.codigo.toLowerCase().includes(filterCodigo.toLowerCase())) return false;
+    if (filterEstado && d.estado !== filterEstado) return false;
+    if (filterPoblacion && d.poblacion_objetivo_id !== filterPoblacion) return false;
+    if (filterCreador && d.creador_id !== filterCreador) return false;
+    if (filterRevisorPedagogico && d.revisor_pedagogico_id !== filterRevisorPedagogico) return false;
+    if (filterRevisorEstilo && d.revisor_estilo_id !== filterRevisorEstilo) return false;
+    return true;
+  });
+
   return (
     <div className="paper-card rounded-xl p-5">
       <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
-        <h3 className="font-display font-bold text-deepViolet">Documentos del proyecto ({documents.length})</h3>
+        <h3 className="font-display font-bold text-deepViolet">
+          Documentos del proyecto ({filteredDocuments.length}
+          {filteredDocuments.length !== documents.length ? ` de ${documents.length}` : ''})
+        </h3>
         <button
-          onClick={onExportCsv}
-          disabled={documents.length === 0}
+          onClick={() => onExportCsv(filteredDocuments)}
+          disabled={filteredDocuments.length === 0}
           className="px-3 py-1.5 rounded-lg bg-cognitiveTeal text-white text-xs font-semibold disabled:opacity-50"
         >
           ⬇ Descargar CSV
         </button>
       </div>
+
+      {documents.length > 0 && (
+        <div className="grid sm:grid-cols-3 lg:grid-cols-6 gap-2 items-end mb-3">
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-500 mb-1">Código</label>
+            <input
+              value={filterCodigo}
+              onChange={(e) => setFilterCodigo(e.target.value)}
+              placeholder="Buscar..."
+              className="w-full border border-deepViolet/20 rounded-lg p-1.5 text-xs"
+            />
+          </div>
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-500 mb-1">Estado</label>
+            <select
+              value={filterEstado}
+              onChange={(e) => setFilterEstado(e.target.value)}
+              className="w-full border border-deepViolet/20 rounded-lg p-1.5 text-xs"
+            >
+              <option value="">Todos</option>
+              {estados.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-500 mb-1">Población objetivo</label>
+            <select
+              value={filterPoblacion}
+              onChange={(e) => setFilterPoblacion(e.target.value)}
+              className="w-full border border-deepViolet/20 rounded-lg p-1.5 text-xs"
+            >
+              <option value="">Todas</option>
+              {poblaciones.map(([id, label]) => (
+                <option key={id} value={id}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-500 mb-1">Creador Experto</label>
+            <select
+              value={filterCreador}
+              onChange={(e) => setFilterCreador(e.target.value)}
+              className="w-full border border-deepViolet/20 rounded-lg p-1.5 text-xs"
+            >
+              <option value="">Todos</option>
+              {creadores.map(([id, label]) => (
+                <option key={id} value={id}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-500 mb-1">Revisor Pedagógico</label>
+            <select
+              value={filterRevisorPedagogico}
+              onChange={(e) => setFilterRevisorPedagogico(e.target.value)}
+              className="w-full border border-deepViolet/20 rounded-lg p-1.5 text-xs"
+            >
+              <option value="">Todos</option>
+              {revisoresPedagogicos.map(([id, label]) => (
+                <option key={id} value={id}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex gap-2 items-end">
+            <div className="flex-1">
+              <label className="block text-[11px] font-semibold text-slate-500 mb-1">Revisor de Estilo</label>
+              <select
+                value={filterRevisorEstilo}
+                onChange={(e) => setFilterRevisorEstilo(e.target.value)}
+                className="w-full border border-deepViolet/20 rounded-lg p-1.5 text-xs"
+              >
+                <option value="">Todos</option>
+                {revisoresEstilo.map(([id, label]) => (
+                  <option key={id} value={id}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {hasActiveFilters && (
+              <button
+                onClick={clearFilters}
+                className="text-xs font-semibold text-red-500 hover:underline whitespace-nowrap pb-1.5"
+              >
+                Limpiar
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-deepViolet/5 text-left text-xs uppercase text-deepViolet/70">
             <tr>
               <th className="p-2">Código</th>
               <th className="p-2">Estado</th>
+              <th className="p-2">Población objetivo</th>
               <th className="p-2">Creador Experto</th>
               <th className="p-2">Revisor Pedagógico</th>
               <th className="p-2">Revisor de Estilo</th>
             </tr>
           </thead>
           <tbody>
-            {documents.map((d) => (
+            {filteredDocuments.map((d) => (
               <tr key={d.id} className="border-t border-deepViolet/10">
                 <td className="p-2 font-mono text-xs">{d.codigo}</td>
                 <td className="p-2">
                   <StateBadge estado={d.estado} />
                 </td>
+                <td className="p-2 text-xs">{d.poblaciones_objetivo?.nombre || '—'}</td>
                 <td className="p-2 text-xs">{fullName(d.creador) || '—'}</td>
                 <td className="p-2 text-xs">{fullName(d.revisor_pedagogico) || '—'}</td>
                 <td className="p-2 text-xs">{fullName(d.revisor_estilo) || '—'}</td>
@@ -57,8 +210,15 @@ function DocumentsListSection({ documents, onExportCsv }) {
             ))}
             {documents.length === 0 && (
               <tr>
-                <td colSpan={5} className="p-6 text-center text-slate-400">
+                <td colSpan={6} className="p-6 text-center text-slate-400">
                   No hay documentos en este proyecto.
+                </td>
+              </tr>
+            )}
+            {documents.length > 0 && filteredDocuments.length === 0 && (
+              <tr>
+                <td colSpan={6} className="p-6 text-center text-slate-400">
+                  Ningún documento coincide con el filtro.
                 </td>
               </tr>
             )}
@@ -106,12 +266,13 @@ export default function Analytics() {
     });
   }, [projectId]);
 
-  const exportCsv = () => {
+  const exportCsv = (docs) => {
     const project = projects.find((p) => p.id === projectId);
-    const csv = toCsv(documents, [
+    const csv = toCsv(docs || documents, [
       { label: 'Código', value: (d) => d.codigo },
       { label: 'Tipo de documento', value: (d) => d.document_types?.nombre || '' },
       { label: 'Estado', value: (d) => d.estado },
+      { label: 'Población objetivo', value: (d) => d.poblaciones_objetivo?.nombre || '' },
       { label: 'Creador Experto', value: (d) => fullName(d.creador) },
       { label: 'Revisor Pedagógico', value: (d) => fullName(d.revisor_pedagogico) },
       { label: 'Revisor de Estilo', value: (d) => fullName(d.revisor_estilo) },
