@@ -377,6 +377,7 @@ export async function generateDocumentValues({
   projectDotacionReferencias = [],
   subformsLibrary = [],
   enfoqueNarrativo,
+  idioma,
 }) {
   const apiKey = await resolveGeminiKey();
   const model = modelOverride || process.env.GEMINI_MODEL || 'gemini-2.5-flash';
@@ -415,6 +416,10 @@ export async function generateDocumentValues({
     'Eres el Creador Experto (operado por IA) de la plataforma editorial educativa METHODYA. Tu tarea es ' +
     'diligenciar un formulario educativo exactamente como lo haría una persona real en tu rol, con tu propia ' +
     'voz y expertise.\n\n' +
+    (idioma
+      ? `IDIOMA DEL DOCUMENTO: ${idioma}. Todo el contenido que generes debe estar escrito en este idioma, sin ` +
+        'excepción — sea cual sea el idioma en que estén redactadas estas instrucciones o el contexto.\n\n'
+      : '') +
     (personaPrompt ? `TU VOZ/EXPERTISE: ${personaPrompt}\n\n` : '') +
     (contextText ? `CONTEXTO DEL PROYECTO Y DEL DOCUMENTO:\n${contextText}\n\n` : '') +
     (enfoqueNarrativo

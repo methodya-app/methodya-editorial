@@ -163,6 +163,7 @@ export default withCors(async (req, res) => {
         projectDotacionReferencias: dotacionReferencias,
         subformsLibrary,
         enfoqueNarrativo,
+        idioma: document.idioma,
       });
 
       const errors = validateDocumentValues({
