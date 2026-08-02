@@ -6,6 +6,13 @@ const isString = (v) => v === undefined || v === null || typeof v === 'string';
 const isStringArray = (v) => v === undefined || (Array.isArray(v) && v.every((x) => typeof x === 'string'));
 const isPlainObject = (v) => typeof v === 'object' && v !== null && !Array.isArray(v);
 
+// El español siempre debe estar disponible como idioma del proyecto,
+// aunque nadie lo haya agregado explícitamente (o alguien intente
+// guardarlo sin él directamente vía la API).
+export function ensureSpanishIdiomas(idiomas) {
+  return Array.isArray(idiomas) && idiomas.includes('Español') ? idiomas : ['Español', ...(idiomas || [])];
+}
+
 // Validación laxa: nada es obligatorio, solo se exige que lo que venga tenga
 // el tipo correcto. Devuelve un arreglo de errores (vacío si todo calza).
 export function validateParametrizacionShape(body) {

@@ -386,6 +386,14 @@ create index if not exists idx_dotacion_referencias_tipo on public.dotacion_refe
 alter table public.documents add column if not exists poblacion_objetivo_id uuid references public.poblaciones_objetivo(id);
 
 -- ---------------------------------------------------------------------
+-- 21. IDIOMA DEL DOCUMENTO
+--    El español siempre está disponible por defecto en la parametrización
+--    del proyecto (Población objetivo > Idiomas); si el proyecto configura
+--    más de un idioma, la API exige elegir uno al crear el documento.
+-- ---------------------------------------------------------------------
+alter table public.documents add column if not exists idioma text;
+
+-- ---------------------------------------------------------------------
 -- 17. AGENTE CREADOR SINTÉTICO
 --    Un Creador Experto puede ser una persona real o un agente operado por
 --    IA que diligencia formularios reutilizando el mismo flujo editorial

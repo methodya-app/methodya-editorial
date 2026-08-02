@@ -3,9 +3,10 @@ import { requireAuth, requireAdmin, roleInProject } from '../../_lib/auth.js';
 import { supabaseAdmin } from '../../_lib/supabaseAdmin.js';
 import { STAGE_ROLE, autoAssignIfNeeded } from '../../_lib/groupAssignment.js';
 import { enqueueGeneration } from '../../_lib/documentGeneration.js';
+import { ensureSpanishIdiomas } from '../../_lib/parametrizacion.js';
 
 const DOCUMENT_COLUMNS =
-  'id, codigo, estado, form_id, document_type_id, poblacion_objetivo_id, creador_id, revisor_pedagogico_id, revisor_estilo_id, vaciado_at, created_at, updated_at,' +
+  'id, codigo, estado, form_id, document_type_id, poblacion_objetivo_id, idioma, creador_id, revisor_pedagogico_id, revisor_estilo_id, vaciado_at, created_at, updated_at,' +
   'creador:creador_id(nombre, apellido, email, is_synthetic),' +
   'revisor_pedagogico:revisor_pedagogico_id(nombre, apellido, email),' +
   'revisor_estilo:revisor_estilo_id(nombre, apellido, email),' +
@@ -85,6 +86,7 @@ export default withCors(async (req, res) => {
       form_id,
       document_type_id,
       poblacion_objetivo_id,
+      idioma,
       creador_id,
       revisor_pedagogico_id,
       revisor_estilo_id,
@@ -108,6 +110,23 @@ export default withCors(async (req, res) => {
       throw new ApiError(400, 'poblacion_objetivo_id es obligatorio y debe ser una de las poblaciones configuradas para este proyecto');
     }
 
+    // El español siempre está disponible por defecto; si el proyecto además
+    // configuró otros idiomas, hay que elegir a cuál corresponde el
+    // documento. Con uno solo configurado, no hace falta preguntar.
+    const idiomasConfigurados = ensureSpanishIdiomas(projectRow?.parametrizacion?.poblacion_objetivo?.idiomas);
+    let idiomaFinal;
+    if (idiomasConfigurados.length > 1) {
+      if (!idioma || !idiomasConfigurados.includes(idioma)) {
+        throw new ApiError(
+          400,
+          `idioma es obligatorio y debe ser uno de los configurados para este proyecto: ${idiomasConfigurados.join(', ')}`
+        );
+      }
+      idiomaFinal = idioma;
+    } else {
+      idiomaFinal = idiomasConfigurados[0] || 'Español';
+    }
+
     const { data, error } = await admin
       .from('documents')
       .insert({
@@ -116,6 +135,7 @@ export default withCors(async (req, res) => {
         form_id,
         document_type_id: document_type_id || null,
         poblacion_objetivo_id,
+        idioma: idiomaFinal,
         creador_id: creador_id || null,
         revisor_pedagogico_id: revisor_pedagogico_id || null,
         revisor_estilo_id: revisor_estilo_id || null,
