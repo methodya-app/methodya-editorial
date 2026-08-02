@@ -3,6 +3,8 @@ import { withCors, ApiError } from '../../_lib/cors.js';
 import { requireAuth } from '../../_lib/auth.js';
 import { getDb } from '../../_lib/mongo.js';
 import { loadDocumentWithAccess } from '../../_lib/documentAccess.js';
+import { supabaseAdmin } from '../../_lib/supabaseAdmin.js';
+import { notifyComment } from '../../_lib/notifications.js';
 
 // Comentarios estilo Word/Google Docs sobre un campo específico del
 // documento, con posibilidad de etiquetar (@mencionar) a otro usuario y de
@@ -27,6 +29,13 @@ export default withCors(async (req, res) => {
     if (reply_to) {
       if (!text) throw new ApiError(400, 'text es obligatorio');
 
+      // Se lee el comentario padre ANTES de responder, solo para saber a
+      // quién avisar (autor del hilo) — no afecta la respuesta en sí.
+      const parentDoc = await db
+        .collection('document_data')
+        .findOne({ document_id: id, 'comments.id': reply_to }, { projection: { 'comments.$': 1 } });
+      const parentComment = parentDoc?.comments?.[0];
+
       const reply = {
         id: randomUUID(),
         author_id: auth.profile.id,
@@ -44,6 +53,17 @@ export default withCors(async (req, res) => {
         .collection('document_data')
         .updateOne({ document_id: id, 'comments.id': reply_to }, update);
       if (result.matchedCount === 0) throw new ApiError(404, 'Comentario no encontrado');
+
+      await notifyComment({
+        admin: supabaseAdmin(),
+        comment: reply,
+        actorId: auth.profile.id,
+        actorNombre: reply.author_nombre,
+        threadAuthorId: parentComment?.author_id,
+        sourceType: 'document',
+        sourceId: id,
+        link: `/documentos/${id}`,
+      });
 
       return res.status(201).json({ reply });
     }
@@ -70,6 +90,17 @@ export default withCors(async (req, res) => {
       },
       { upsert: true }
     );
+
+    await notifyComment({
+      admin: supabaseAdmin(),
+      comment,
+      actorId: auth.profile.id,
+      actorNombre: comment.author_nombre,
+      threadAuthorId: null,
+      sourceType: 'document',
+      sourceId: id,
+      link: `/documentos/${id}`,
+    });
 
     return res.status(201).json({ comment });
   }

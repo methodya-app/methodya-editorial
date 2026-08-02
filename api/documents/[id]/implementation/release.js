@@ -4,6 +4,7 @@ import { supabaseAdmin } from '../../../_lib/supabaseAdmin.js';
 import { getDb } from '../../../_lib/mongo.js';
 import { loadDocumentWithAccess } from '../../../_lib/documentAccess.js';
 import { autoAssignImplementation } from '../../../_lib/implementationAssignment.js';
+import { notifyAssignment } from '../../../_lib/notifications.js';
 
 // Libera el documento COMPLETO (ya Finalizado) al área de Implementación,
 // como una única tarea de solo lectura + comentarios. A diferencia de
@@ -61,6 +62,16 @@ export default withCors(async (req, res) => {
     await db
       .collection('document_implementations')
       .updateOne({ _id: insertResult.insertedId }, { $set: { assigned_user_id: assignedUserId } });
+    await notifyAssignment({
+      admin,
+      userId: assignedUserId,
+      actorId: auth.profile.id,
+      roleLabel: 'Implementador',
+      codigo: implementation.document_codigo,
+      link: `/implementacion/tarea/${insertResult.insertedId}`,
+      sourceType: 'implementation',
+      sourceId: insertResult.insertedId.toString(),
+    });
   }
 
   return res.status(200).json({ ok: true, id: insertResult.insertedId.toString() });

@@ -4,6 +4,13 @@ import { supabaseAdmin } from '../_lib/supabaseAdmin.js';
 import { getDb, toObjectId } from '../_lib/mongo.js';
 import { loadDocumentWithAccess } from '../_lib/documentAccess.js';
 import { autoAssignIfNeeded } from '../_lib/groupAssignment.js';
+import { notifyAssignment } from '../_lib/notifications.js';
+
+const ROLE_LABEL_BY_FIELD = {
+  creador_id: 'Creador Experto',
+  revisor_pedagogico_id: 'Revisor Pedagógico',
+  revisor_estilo_id: 'Revisor de Estilo',
+};
 
 export default withCors(async (req, res) => {
   const auth = await requireAuth(req);
@@ -64,7 +71,8 @@ export default withCors(async (req, res) => {
     const { data: before, error: beforeError } = await admin
       .from('documents')
       .select(
-        'estado, project_id, projects(asignacion_creador, asignacion_revisor_pedagogico, asignacion_revisor_estilo, criterio_carga, parametrizacion)'
+        'estado, codigo, creador_id, revisor_pedagogico_id, revisor_estilo_id, project_id, ' +
+          'projects(asignacion_creador, asignacion_revisor_pedagogico, asignacion_revisor_estilo, criterio_carga, parametrizacion)'
       )
       .eq('id', id)
       .single();
@@ -101,11 +109,29 @@ export default withCors(async (req, res) => {
       });
     }
 
+    // Si el Administrador cambió a mano quién queda a cargo de un rol
+    // (distinto del que ya estaba), se notifica — auto-asignación (abajo)
+    // ya notifica por su cuenta, así que acá solo interesa el cambio manual.
+    for (const field of Object.keys(ROLE_LABEL_BY_FIELD)) {
+      if (updates[field] !== undefined && updates[field] && updates[field] !== before[field]) {
+        await notifyAssignment({
+          admin,
+          userId: updates[field],
+          actorId: auth.profile.id,
+          roleLabel: ROLE_LABEL_BY_FIELD[field],
+          codigo: data.codigo,
+          link: `/documentos/${id}`,
+          sourceType: 'document',
+          sourceId: id,
+        });
+      }
+    }
+
     // El Administrador pudo dejar el documento sin nadie asignado en el
     // campo de su rol (o mover el estado a una etapa cuyo campo está
     // vacío); según la configuración del proyecto, se asigna solo o queda
     // disponible para que alguien lo tome.
-    await autoAssignIfNeeded(admin, data, before.projects);
+    await autoAssignIfNeeded(admin, data, before.projects, auth.profile.id);
 
     return res.status(200).json({ document: data });
   }

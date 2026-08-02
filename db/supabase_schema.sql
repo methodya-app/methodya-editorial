@@ -510,6 +510,49 @@ create table if not exists public.document_generation_jobs (
 
 create index if not exists idx_dgj_document on public.document_generation_jobs(document_id, created_at desc);
 
+-- ---------------------------------------------------------------------
+-- 22. NOTIFICACIONES (comentarios + asignaciones, en la app y por correo)
+--    Una fila por destinatario (no por evento): si un comentario menciona a
+--    dos personas, se insertan dos filas. source_type/source_id apuntan a
+--    dónde ocurrió (documento en Postgres, o subformulario/implementación
+--    en Mongo, por eso source_id es texto y no una FK). comment_id solo
+--    aplica a las de tipo comment_* y sirve para consultar en vivo el
+--    estado actual de ese comentario (nuevo/respondido/cerrado) sin
+--    duplicar esa información acá.
+-- ---------------------------------------------------------------------
+create table if not exists public.notifications (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  actor_id uuid references public.profiles(id),
+  type text not null check (type in ('comment_mention','comment_reply','assignment')),
+  title text not null,
+  body text,
+  link text,
+  source_type text,
+  source_id text,
+  comment_id text,
+  read boolean not null default false,
+  email_sent boolean not null default false,
+  created_at timestamptz not null default now()
+);
+create index if not exists idx_notifications_user on public.notifications(user_id, read, created_at desc);
+alter table public.notifications enable row level security;
+
+-- Preferencia de correo por usuario (autogestionable desde /mi-cuenta).
+alter table public.profiles add column if not exists email_notifications_enabled boolean not null default true;
+
+-- Proveedor de correo saliente, configurable desde Parámetros del servidor
+-- sin redeploy (mismo patrón que gemini_api_key/google_oauth_*). Se arranca
+-- con Gmail SMTP (cuenta ya existente); Resend queda disponible para elegir
+-- apenas se cargue su API key, sin necesitar otro cambio de código.
+alter table public.settings add column if not exists email_provider text not null default 'gmail_smtp'
+  check (email_provider in ('gmail_smtp','resend'));
+alter table public.settings add column if not exists email_gmail_user text;
+alter table public.settings add column if not exists email_gmail_app_password text;
+alter table public.settings add column if not exists email_resend_api_key text;
+alter table public.settings add column if not exists email_from_name text default 'METHODYA';
+alter table public.settings add column if not exists email_from_address text;
+
 -- =====================================================================
 -- Nota sobre RLS: en esta beta el acceso a datos se realiza EXCLUSIVAMENTE
 -- a través de las funciones serverless de Vercel usando la Service Role Key

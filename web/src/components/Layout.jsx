@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../lib/auth.jsx';
+import NotificationBell from './NotificationBell.jsx';
 
 const navLinkClass = ({ isActive }) =>
   `px-3 py-2 rounded-lg text-sm font-medium transition ${
@@ -125,9 +126,10 @@ export default function Layout() {
         </nav>
 
         <div className="flex items-center gap-3">
-          <span className="text-sm text-empatheticLinen/90">
+          <NotificationBell />
+          <NavLink to="/mi-cuenta" className="text-sm text-empatheticLinen/90 hover:underline">
             {profile ? `${profile.nombre} ${profile.apellido}` : ''}
-          </span>
+          </NavLink>
           <button
             onClick={handleLogout}
             className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-warmAmber text-deepViolet hover:bg-warmAmber-hover"

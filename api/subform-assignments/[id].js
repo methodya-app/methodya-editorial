@@ -1,6 +1,8 @@
 import { withCors, ApiError } from '../_lib/cors.js';
 import { requireAuth, isProjectMultimediaCoordinator } from '../_lib/auth.js';
 import { getDb, toObjectId } from '../_lib/mongo.js';
+import { supabaseAdmin } from '../_lib/supabaseAdmin.js';
+import { notifyAssignment } from '../_lib/notifications.js';
 
 // Carga una tarea multimedia con acceso: asignada a mí, disponible para mi
 // rol (aún sin tomar), o Coordinador Multimedia/Admin del proyecto.
@@ -54,6 +56,23 @@ export default withCors(async (req, res) => {
 
     await db.collection('subform_assignments').updateOne({ _id: assignment._id }, { $set: updates });
     const updated = await db.collection('subform_assignments').findOne({ _id: assignment._id });
+
+    if (updates.assigned_user_id && updates.assigned_user_id !== assignment.assigned_user_id) {
+      const admin = supabaseAdmin();
+      const roleId = updates.multimedia_role_id || assignment.multimedia_role_id;
+      const { data: role } = await admin.from('multimedia_roles').select('nombre').eq('id', roleId).maybeSingle();
+      await notifyAssignment({
+        admin,
+        userId: updates.assigned_user_id,
+        actorId: auth.profile.id,
+        roleLabel: role?.nombre || 'multimedia',
+        codigo: updated.subform_codigo || updated.document_codigo,
+        link: `/multimedia/tarea/${id}`,
+        sourceType: 'subform_assignment',
+        sourceId: id,
+      });
+    }
+
     return res.status(200).json({ assignment: { ...updated, id: updated._id.toString(), _id: undefined } });
   }
 
