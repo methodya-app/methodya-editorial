@@ -40,7 +40,7 @@ async function sendToRevisionPedagogica({ admin, document, agentId, nota }) {
     nota,
   });
 
-  await autoAssignIfNeeded(admin, updated, document.projects);
+  await autoAssignIfNeeded(admin, updated, document.projects, agentId);
 }
 
 // A diferencia de generate.js (que solo encola y responde en milisegundos),

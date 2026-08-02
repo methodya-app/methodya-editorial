@@ -25,6 +25,12 @@ export default withCors(async (req, res) => {
           : null,
         google_oauth_connected: !!data.google_oauth_refresh_token,
         google_oauth_refresh_token: undefined,
+        email_gmail_app_password: data.email_gmail_app_password
+          ? '••••••••' + data.email_gmail_app_password.slice(-4)
+          : null,
+        email_resend_api_key: data.email_resend_api_key
+          ? '••••••••' + data.email_resend_api_key.slice(-4)
+          : null,
       },
     });
   }
@@ -39,6 +45,12 @@ export default withCors(async (req, res) => {
       google_oauth_client_id,
       google_oauth_client_secret,
       google_disconnect,
+      email_provider,
+      email_gmail_user,
+      email_gmail_app_password,
+      email_resend_api_key,
+      email_from_name,
+      email_from_address,
     } = req.body || {};
     const updates = { updated_by: auth.profile.id, updated_at: new Date().toISOString() };
     if (gemini_api_key) updates.gemini_api_key = gemini_api_key;
@@ -57,6 +69,17 @@ export default withCors(async (req, res) => {
       updates.google_oauth_refresh_token = null;
       updates.google_oauth_connected_email = null;
     }
+    if (email_provider !== undefined) {
+      if (!['gmail_smtp', 'resend'].includes(email_provider)) {
+        throw new ApiError(400, 'email_provider inválido');
+      }
+      updates.email_provider = email_provider;
+    }
+    if (email_gmail_user !== undefined) updates.email_gmail_user = email_gmail_user;
+    if (email_gmail_app_password) updates.email_gmail_app_password = email_gmail_app_password;
+    if (email_resend_api_key) updates.email_resend_api_key = email_resend_api_key;
+    if (email_from_name !== undefined) updates.email_from_name = email_from_name;
+    if (email_from_address !== undefined) updates.email_from_address = email_from_address;
 
     const { data, error } = await admin
       .from('settings')
@@ -73,6 +96,8 @@ export default withCors(async (req, res) => {
         languagetool_api_key: undefined,
         google_oauth_client_secret: undefined,
         google_oauth_refresh_token: undefined,
+        email_gmail_app_password: undefined,
+        email_resend_api_key: undefined,
       },
     });
   }

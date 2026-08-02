@@ -19,6 +19,14 @@ export default function ServerSettings() {
   const [googleMessage, setGoogleMessage] = useState('');
   const [saving, setSaving] = useState(false);
   const [savedAt, setSavedAt] = useState(null);
+  const [emailProvider, setEmailProvider] = useState('gmail_smtp');
+  const [emailGmailUser, setEmailGmailUser] = useState('');
+  const [emailGmailAppPassword, setEmailGmailAppPassword] = useState('');
+  const [emailResendApiKey, setEmailResendApiKey] = useState('');
+  const [emailFromName, setEmailFromName] = useState('');
+  const [emailFromAddress, setEmailFromAddress] = useState('');
+  const [testingEmail, setTestingEmail] = useState(false);
+  const [testEmailMessage, setTestEmailMessage] = useState('');
   const pollRef = useRef(null);
 
   const load = async () => {
@@ -28,6 +36,10 @@ export default function ServerSettings() {
     setLtUsername(data.settings.languagetool_username || '');
     setSpellMode(data.settings.spellcheck_submit_mode || 'off');
     setGoogleClientId(data.settings.google_oauth_client_id || '');
+    setEmailProvider(data.settings.email_provider || 'gmail_smtp');
+    setEmailGmailUser(data.settings.email_gmail_user || '');
+    setEmailFromName(data.settings.email_from_name || '');
+    setEmailFromAddress(data.settings.email_from_address || '');
     return data.settings;
   };
 
@@ -60,14 +72,35 @@ export default function ServerSettings() {
         spellcheck_submit_mode: spellMode,
         google_oauth_client_id: googleClientId,
         google_oauth_client_secret: googleClientSecret || undefined,
+        email_provider: emailProvider,
+        email_gmail_user: emailGmailUser,
+        email_gmail_app_password: emailGmailAppPassword || undefined,
+        email_resend_api_key: emailResendApiKey || undefined,
+        email_from_name: emailFromName,
+        email_from_address: emailFromAddress,
       });
       setGeminiKey('');
       setLtApiKey('');
       setGoogleClientSecret('');
+      setEmailGmailAppPassword('');
+      setEmailResendApiKey('');
       setSavedAt(new Date());
       load();
     } finally {
       setSaving(false);
+    }
+  };
+
+  const sendTestEmail = async () => {
+    setTestingEmail(true);
+    setTestEmailMessage('');
+    try {
+      const { sent_to } = await api.post('/settings/test-email');
+      setTestEmailMessage({ type: 'success', text: `Correo de prueba enviado a ${sent_to} ✓` });
+    } catch (err) {
+      setTestEmailMessage({ type: 'error', text: err.message });
+    } finally {
+      setTestingEmail(false);
     }
   };
 
@@ -248,6 +281,90 @@ export default function ServerSettings() {
           {googleMessage && (
             <p className={`mt-2 text-xs ${googleMessage.type === 'error' ? 'text-red-600' : 'text-emerald-600'}`}>
               {googleMessage.text}
+            </p>
+          )}
+        </div>
+
+        <div className="border-t border-deepViolet/10 pt-3">
+          <p className="text-xs font-bold text-deepViolet mb-1.5">Notificaciones por correo</p>
+          <p className="text-xs text-slate-500 mb-2">
+            Correo enviado cuando mencionan a alguien en un comentario, responden un hilo, o asignan una
+            tarea. Cada usuario puede apagarlo desde "Mi cuenta".
+          </p>
+
+          <label className="block text-xs font-semibold text-slate-500 mb-1">Proveedor</label>
+          <select
+            value={emailProvider}
+            onChange={(e) => setEmailProvider(e.target.value)}
+            className="w-full border border-deepViolet/20 rounded-lg p-2 text-sm mb-3"
+          >
+            <option value="gmail_smtp">Gmail SMTP</option>
+            <option value="resend">Resend</option>
+          </select>
+
+          {emailProvider === 'gmail_smtp' ? (
+            <>
+              <label className="block text-xs font-semibold text-slate-500 mb-1">Cuenta de Gmail</label>
+              <input
+                value={emailGmailUser}
+                onChange={(e) => setEmailGmailUser(e.target.value)}
+                placeholder="methodya.app@gmail.com"
+                className="w-full border border-deepViolet/20 rounded-lg p-2 text-sm mb-2"
+              />
+              <label className="block text-xs font-semibold text-slate-500 mb-1">
+                Contraseña de aplicación actual:{' '}
+                <span className="font-mono">{settings.email_gmail_app_password || 'no configurada'}</span>
+              </label>
+              <input
+                type="password"
+                value={emailGmailAppPassword}
+                onChange={(e) => setEmailGmailAppPassword(e.target.value)}
+                placeholder="Nueva contraseña de aplicación (dejar vacío para no cambiar)"
+                className="w-full border border-deepViolet/20 rounded-lg p-2 text-sm mb-3"
+              />
+            </>
+          ) : (
+            <>
+              <label className="block text-xs font-semibold text-slate-500 mb-1">
+                API key de Resend actual:{' '}
+                <span className="font-mono">{settings.email_resend_api_key || 'no configurada'}</span>
+              </label>
+              <input
+                type="password"
+                value={emailResendApiKey}
+                onChange={(e) => setEmailResendApiKey(e.target.value)}
+                placeholder="Nueva API key (dejar vacío para no cambiar)"
+                className="w-full border border-deepViolet/20 rounded-lg p-2 text-sm mb-3"
+              />
+              <label className="block text-xs font-semibold text-slate-500 mb-1">Correo remitente</label>
+              <input
+                value={emailFromAddress}
+                onChange={(e) => setEmailFromAddress(e.target.value)}
+                placeholder="notificaciones@tudominio.com"
+                className="w-full border border-deepViolet/20 rounded-lg p-2 text-sm mb-3"
+              />
+            </>
+          )}
+
+          <label className="block text-xs font-semibold text-slate-500 mb-1">Nombre del remitente</label>
+          <input
+            value={emailFromName}
+            onChange={(e) => setEmailFromName(e.target.value)}
+            placeholder="METHODYA"
+            className="w-full border border-deepViolet/20 rounded-lg p-2 text-sm mb-3"
+          />
+
+          <button
+            type="button"
+            onClick={sendTestEmail}
+            disabled={testingEmail}
+            className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-deepViolet text-white disabled:opacity-50"
+          >
+            {testingEmail ? 'Enviando...' : 'Enviar correo de prueba'}
+          </button>
+          {testEmailMessage && (
+            <p className={`mt-2 text-xs ${testEmailMessage.type === 'error' ? 'text-red-600' : 'text-emerald-600'}`}>
+              {testEmailMessage.text}
             </p>
           )}
         </div>
