@@ -9,9 +9,15 @@ const EMPTY = {
   estilo: { tono: '', nivel_formalidad: '', terminologia_preferida: '', terminologia_evitar: '' },
   pedagogia: { enfoque: '', lineamientos: '', enfoques_narrativos_excluidos: [] },
   temas_focos: { temas: [], descripcion: '' },
-  poblacion_objetivo: { poblacion_ids: [], region_contexto: '', idiomas: [] },
+  poblacion_objetivo: { poblacion_ids: [], region_contexto: '', idiomas: ['Español'] },
   dotacion: { referencia_ids: [] },
 };
+
+// El español siempre debe estar disponible como idioma del proyecto,
+// aunque el equipo agregue otros; nunca se puede quitar desde la interfaz.
+function ensureSpanish(idiomas) {
+  return (idiomas || []).includes('Español') ? idiomas : ['Español', ...(idiomas || [])];
+}
 
 const SUBTABS = [
   { key: 'estilo_pedagogia', label: 'Estilo y Pedagogía' },
@@ -304,7 +310,11 @@ export default function ProjectParametrizacionTab({ projectId, project, onSaved,
       estilo: { ...EMPTY.estilo, ...(p.estilo || {}) },
       pedagogia: { ...EMPTY.pedagogia, ...(p.pedagogia || {}) },
       temas_focos: { ...EMPTY.temas_focos, ...(p.temas_focos || {}) },
-      poblacion_objetivo: { ...EMPTY.poblacion_objetivo, ...(p.poblacion_objetivo || {}) },
+      poblacion_objetivo: {
+        ...EMPTY.poblacion_objetivo,
+        ...(p.poblacion_objetivo || {}),
+        idiomas: ensureSpanish(p.poblacion_objetivo?.idiomas),
+      },
       dotacion: { ...EMPTY.dotacion, ...(p.dotacion || {}) },
     });
     setAllPopulations(populationsData.poblaciones_objetivo);
@@ -646,9 +656,13 @@ export default function ProjectParametrizacionTab({ projectId, project, onSaved,
                   <TagsInput
                     readOnly={!canEdit}
                     value={form.poblacion_objetivo.idiomas}
-                    onChange={(v) => update('poblacion_objetivo', 'idiomas', v)}
-                    placeholder="Ej: Español, Quechua, Creole de San Andrés..."
+                    onChange={(v) => update('poblacion_objetivo', 'idiomas', ensureSpanish(v))}
+                    placeholder="Ej: Quechua, Creole de San Andrés..."
                   />
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    El español siempre está disponible por defecto. Si agregas más de un idioma, al crear un
+                    documento habrá que elegir a cuál corresponde.
+                  </p>
                 </div>
               </>
             )}

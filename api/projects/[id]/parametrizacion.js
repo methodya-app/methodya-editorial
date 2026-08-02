@@ -1,7 +1,7 @@
 import { withCors, ApiError } from '../../_lib/cors.js';
 import { requireAuth, requireAdmin, roleInProject } from '../../_lib/auth.js';
 import { supabaseAdmin } from '../../_lib/supabaseAdmin.js';
-import { validateParametrizacionShape } from '../../_lib/parametrizacion.js';
+import { validateParametrizacionShape, ensureSpanishIdiomas } from '../../_lib/parametrizacion.js';
 
 // Parametrización del proyecto: contexto/guía editorial y pedagógica (NO son
 // reglas duras, eso es global_validations). Cualquiera con acceso al
@@ -23,6 +23,14 @@ export default withCors(async (req, res) => {
     const errors = validateParametrizacionShape(req.body);
     if (errors.length > 0) throw new ApiError(422, errors.join('; '));
 
+    const body = { ...(req.body || {}) };
+    if (body.poblacion_objetivo) {
+      body.poblacion_objetivo = {
+        ...body.poblacion_objetivo,
+        idiomas: ensureSpanishIdiomas(body.poblacion_objetivo.idiomas),
+      };
+    }
+
     const { data: current, error: currentError } = await admin
       .from('projects')
       .select('parametrizacion')
@@ -38,7 +46,7 @@ export default withCors(async (req, res) => {
 
     const { data, error } = await admin
       .from('projects')
-      .update({ parametrizacion: req.body || {}, updated_at: new Date().toISOString() })
+      .update({ parametrizacion: body, updated_at: new Date().toISOString() })
       .eq('id', id)
       .select('parametrizacion')
       .single();
