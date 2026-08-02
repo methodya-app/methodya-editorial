@@ -479,6 +479,161 @@ function MultimediaSubformsSection({ assignments, documents, multimediaRoles, te
   );
 }
 
+// Lista de documentos enviados a Implementación (uno por documento, no una
+// tabla genérica de documentos): orientada a los estados propios de esa
+// etapa, no a los del flujo editorial — versión para la pestaña
+// "Implementación".
+function ImplementationSection({ implementations, teamMembers, onExportCsv }) {
+  const [previewDocId, setPreviewDocId] = useState(null);
+  const [filterCodigo, setFilterCodigo] = useState('');
+  const [filterEstado, setFilterEstado] = useState('');
+  const [filterUsuario, setFilterUsuario] = useState('');
+
+  const assignedName = (userId) => {
+    const m = teamMembers.find((tm) => tm.profiles?.id === userId);
+    return m ? `${m.profiles.nombre} ${m.profiles.apellido}` : 'Sin asignar';
+  };
+
+  const rows = implementations.map((i) => ({ ...i, usuario_nombre: assignedName(i.assigned_user_id) }));
+
+  const estados = [...new Set(rows.map((r) => r.estado))].sort();
+  const usuarios = [...new Set(rows.map((r) => r.usuario_nombre).filter((n) => n !== 'Sin asignar'))].sort();
+
+  const hasActiveFilters = filterCodigo || filterEstado || filterUsuario;
+  const clearFilters = () => {
+    setFilterCodigo('');
+    setFilterEstado('');
+    setFilterUsuario('');
+  };
+
+  const filteredRows = rows.filter((r) => {
+    if (filterCodigo && !(r.document_codigo || '').toLowerCase().includes(filterCodigo.toLowerCase())) return false;
+    if (filterEstado && r.estado !== filterEstado) return false;
+    if (filterUsuario && r.usuario_nombre !== filterUsuario) return false;
+    return true;
+  });
+
+  return (
+    <div className="paper-card rounded-xl p-5">
+      <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+        <h3 className="font-display font-bold text-deepViolet">
+          Documentos enviados a implementación ({filteredRows.length}
+          {filteredRows.length !== rows.length ? ` de ${rows.length}` : ''})
+        </h3>
+        <button
+          onClick={() => onExportCsv(filteredRows)}
+          disabled={filteredRows.length === 0}
+          className="px-3 py-1.5 rounded-lg bg-cognitiveTeal text-white text-xs font-semibold disabled:opacity-50"
+        >
+          ⬇ Descargar CSV
+        </button>
+      </div>
+
+      {rows.length > 0 && (
+        <div className="grid sm:grid-cols-3 gap-2 items-end mb-3">
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-500 mb-1">Código</label>
+            <input
+              value={filterCodigo}
+              onChange={(e) => setFilterCodigo(e.target.value)}
+              placeholder="Buscar..."
+              className="w-full border border-deepViolet/20 rounded-lg p-1.5 text-xs"
+            />
+          </div>
+          <div>
+            <label className="block text-[11px] font-semibold text-slate-500 mb-1">Estado implementación</label>
+            <select
+              value={filterEstado}
+              onChange={(e) => setFilterEstado(e.target.value)}
+              className="w-full border border-deepViolet/20 rounded-lg p-1.5 text-xs"
+            >
+              <option value="">Todos</option>
+              {estados.map((s) => (
+                <option key={s} value={s}>
+                  {s}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex gap-2 items-end">
+            <div className="flex-1">
+              <label className="block text-[11px] font-semibold text-slate-500 mb-1">Implementador asignado</label>
+              <select
+                value={filterUsuario}
+                onChange={(e) => setFilterUsuario(e.target.value)}
+                className="w-full border border-deepViolet/20 rounded-lg p-1.5 text-xs"
+              >
+                <option value="">Todos</option>
+                {usuarios.map((u) => (
+                  <option key={u} value={u}>
+                    {u}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {hasActiveFilters && (
+              <button
+                onClick={clearFilters}
+                className="text-xs font-semibold text-red-500 hover:underline whitespace-nowrap pb-1.5"
+              >
+                Limpiar
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead className="bg-deepViolet/5 text-left text-xs uppercase text-deepViolet/70">
+            <tr>
+              <th className="p-2">Código</th>
+              <th className="p-2">Estado implementación</th>
+              <th className="p-2">Implementador asignado</th>
+              <th className="p-2">Fecha de asignación</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredRows.map((r) => (
+              <tr key={r.id} className="border-t border-deepViolet/10">
+                <td className="p-2 font-mono text-xs">
+                  <button
+                    onClick={() => setPreviewDocId(r.document_id)}
+                    className="text-cognitiveTeal hover:underline"
+                  >
+                    {r.document_codigo}
+                  </button>
+                </td>
+                <td className="p-2">
+                  <StateBadge estado={r.estado} />
+                </td>
+                <td className="p-2 text-xs">{r.usuario_nombre}</td>
+                <td className="p-2 text-xs">{fmtDate(r.released_at || r.created_at)}</td>
+              </tr>
+            ))}
+            {rows.length === 0 && (
+              <tr>
+                <td colSpan={4} className="p-6 text-center text-slate-400">
+                  No hay documentos enviados a implementación en este proyecto.
+                </td>
+              </tr>
+            )}
+            {rows.length > 0 && filteredRows.length === 0 && (
+              <tr>
+                <td colSpan={4} className="p-6 text-center text-slate-400">
+                  Ningún documento coincide con el filtro.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <DocumentPreviewModal open={!!previewDocId} documentId={previewDocId} onClose={() => setPreviewDocId(null)} />
+    </div>
+  );
+}
+
 export default function Analytics() {
   const [projects, setProjects] = useState([]);
   const [projectId, setProjectId] = useState('');
@@ -490,6 +645,8 @@ export default function Analytics() {
   const [subformAssignments, setSubformAssignments] = useState([]);
   const [multimediaRolesCatalog, setMultimediaRolesCatalog] = useState([]);
   const [multimediaTeam, setMultimediaTeam] = useState([]);
+  const [implementations, setImplementations] = useState([]);
+  const [implementationTeam, setImplementationTeam] = useState([]);
   const [loading, setLoading] = useState(true);
   const [usage, setUsage] = useState(null);
 
@@ -513,16 +670,32 @@ export default function Analytics() {
       api.get(`/subform-assignments?project_id=${projectId}&all=1`),
       api.get('/multimedia-roles'),
       api.get(`/projects/${projectId}/multimedia-team`),
-    ]).then(([docsData, analyticsData, multimediaData, implementationData, subformAssignmentsData, rolesData, teamData]) => {
-      setDocuments(docsData.documents);
-      setAnalytics(analyticsData);
-      setMultimediaAnalytics(multimediaData);
-      setImplementationAnalytics(implementationData);
-      setSubformAssignments(subformAssignmentsData.assignments);
-      setMultimediaRolesCatalog(rolesData.multimedia_roles);
-      setMultimediaTeam(teamData.multimedia_project_users);
-      setLoading(false);
-    });
+      api.get(`/implementations?project_id=${projectId}&all=1`),
+      api.get(`/projects/${projectId}/implementation-team`),
+    ]).then(
+      ([
+        docsData,
+        analyticsData,
+        multimediaData,
+        implementationData,
+        subformAssignmentsData,
+        rolesData,
+        teamData,
+        implementationsData,
+        implementationTeamData,
+      ]) => {
+        setDocuments(docsData.documents);
+        setAnalytics(analyticsData);
+        setMultimediaAnalytics(multimediaData);
+        setImplementationAnalytics(implementationData);
+        setSubformAssignments(subformAssignmentsData.assignments);
+        setMultimediaRolesCatalog(rolesData.multimedia_roles);
+        setMultimediaTeam(teamData.multimedia_project_users);
+        setImplementations(implementationsData.implementations);
+        setImplementationTeam(implementationTeamData.implementacion_project_users);
+        setLoading(false);
+      }
+    );
   }, [projectId]);
 
   const exportCsv = (docs) => {
@@ -555,6 +728,17 @@ export default function Analytics() {
       { label: 'Fecha de asignación', value: (r) => fmtDate(r.released_at || r.created_at) },
     ]);
     downloadCsv(`${project?.codigo || 'proyecto'}-subformularios-multimedia.csv`, csv);
+  };
+
+  const exportImplementationsCsv = (rows) => {
+    const project = projects.find((p) => p.id === projectId);
+    const csv = toCsv(rows, [
+      { label: 'Código documento', value: (r) => r.document_codigo },
+      { label: 'Estado implementación', value: (r) => r.estado },
+      { label: 'Implementador asignado', value: (r) => r.usuario_nombre },
+      { label: 'Fecha de asignación', value: (r) => fmtDate(r.released_at || r.created_at) },
+    ]);
+    downloadCsv(`${project?.codigo || 'proyecto'}-implementacion.csv`, csv);
   };
 
   return (
@@ -775,7 +959,11 @@ export default function Analytics() {
                     </div>
                   </div>
 
-                  <DocumentsListSection documents={documents} onExportCsv={exportCsv} />
+                  <ImplementationSection
+                    implementations={implementations}
+                    teamMembers={implementationTeam}
+                    onExportCsv={exportImplementationsCsv}
+                  />
                 </div>
               )}
 
