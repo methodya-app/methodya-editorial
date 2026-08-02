@@ -533,10 +533,16 @@ create table if not exists public.notifications (
   comment_id text,
   read boolean not null default false,
   email_sent boolean not null default false,
+  deleted boolean not null default false,
   created_at timestamptz not null default now()
 );
 create index if not exists idx_notifications_user on public.notifications(user_id, read, created_at desc);
 alter table public.notifications enable row level security;
+
+-- Papelera de notificaciones (ver ProjectDocumentsTab.jsx para el mismo
+-- patrón, aunque acá se usa un booleano simple en vez de un estado 'Eliminado'
+-- porque esta tabla no tiene más estados intermedios).
+alter table public.notifications add column if not exists deleted boolean not null default false;
 
 -- Preferencia de correo por usuario (autogestionable desde /mi-cuenta).
 alter table public.profiles add column if not exists email_notifications_enabled boolean not null default true;
