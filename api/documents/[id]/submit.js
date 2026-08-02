@@ -85,7 +85,7 @@ export default withCors(async (req, res) => {
   // El documento pudo entrar a una etapa (Pendiente, Revisión Pedagógica,
   // Revisión Estilo, Devuelto) sin nadie asignado en el campo de ese rol;
   // según la configuración del proyecto, se asigna solo o queda disponible.
-  await autoAssignIfNeeded(admin, data, access.document.projects);
+  await autoAssignIfNeeded(admin, data, access.document.projects, auth.profile.id);
 
   return res.status(200).json({ document: data });
 });

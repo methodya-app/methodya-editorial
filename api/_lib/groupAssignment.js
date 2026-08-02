@@ -1,3 +1,5 @@
+import { notifyAssignment } from './notifications.js';
+
 // Cuando un documento entra sin asignar a la etapa de un rol, este módulo
 // decide qué hacer según la configuración del proyecto para ese rol:
 //  - 'manual': no hace nada, queda disponible para que alguien lo tome
@@ -37,7 +39,11 @@ function pickRandom(arr) {
 // Intenta asignar automáticamente `document[field]` si está en null y el
 // modo configurado para ese rol no es 'manual'. No lanza errores: si no hay
 // nadie con el rol en el proyecto, simplemente deja el documento sin asignar.
-export async function autoAssignIfNeeded(admin, document, project) {
+// `actorId` (opcional) es quién disparó la transición que llevó a esto —
+// solo se usa para la notificación (evita auto-notificarse); si no se pasa
+// (ej. lo dispara el worker de generación por IA, sin usuario humano detrás)
+// simplemente no hay a quién excluir.
+export async function autoAssignIfNeeded(admin, document, project, actorId) {
   const match = stageRoleForEstado(document.estado);
   if (!match) return;
   if (document[match.field]) return; // ya tiene a alguien asignado
@@ -77,4 +83,15 @@ export async function autoAssignIfNeeded(admin, document, project) {
   }
 
   await admin.from('documents').update({ [match.field]: chosenUserId }).eq('id', document.id);
+
+  await notifyAssignment({
+    admin,
+    userId: chosenUserId,
+    actorId,
+    roleLabel: match.role,
+    codigo: document.codigo,
+    link: `/documentos/${document.id}`,
+    sourceType: 'document',
+    sourceId: document.id,
+  });
 }

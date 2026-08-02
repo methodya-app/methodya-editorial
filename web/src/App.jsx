@@ -27,6 +27,8 @@ import MultimediaSubformDetail from './pages/shared/MultimediaSubformDetail.jsx'
 import ImplementationProjects from './pages/shared/ImplementationProjects.jsx';
 import ImplementationWork from './pages/shared/ImplementationWork.jsx';
 import ImplementationDetail from './pages/shared/ImplementationDetail.jsx';
+import Notifications from './pages/Notifications.jsx';
+import MyAccount from './pages/MyAccount.jsx';
 
 function Home() {
   const { isAdmin } = useAuth();
@@ -78,6 +80,9 @@ export default function App() {
         <Route path="/implementacion" element={<ImplementationProjects />} />
         <Route path="/implementacion/tarea/:id" element={<ImplementationDetail />} />
         <Route path="/implementacion/:projectId" element={<ImplementationWork />} />
+
+        <Route path="/notificaciones" element={<Notifications />} />
+        <Route path="/mi-cuenta" element={<MyAccount />} />
       </Route>
 
       <Route path="*" element={<Navigate to="/" replace />} />

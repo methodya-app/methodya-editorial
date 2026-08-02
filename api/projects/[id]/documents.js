@@ -4,6 +4,7 @@ import { supabaseAdmin } from '../../_lib/supabaseAdmin.js';
 import { STAGE_ROLE, autoAssignIfNeeded } from '../../_lib/groupAssignment.js';
 import { enqueueGeneration } from '../../_lib/documentGeneration.js';
 import { ensureSpanishIdiomas } from '../../_lib/parametrizacion.js';
+import { notifyAssignment } from '../../_lib/notifications.js';
 
 const DOCUMENT_COLUMNS =
   'id, codigo, estado, form_id, document_type_id, poblacion_objetivo_id, idioma, creador_id, revisor_pedagogico_id, revisor_estilo_id, vaciado_at, created_at, updated_at,' +
@@ -153,6 +154,26 @@ export default withCors(async (req, res) => {
       nota: 'Documento creado',
     });
 
+    // Asignación explícita al crear (no la automática de abajo): notifica a
+    // cada rol que efectivamente vino informado en el formulario.
+    const explicitAssignments = [
+      { userId: creador_id, roleLabel: 'Creador Experto' },
+      { userId: revisor_pedagogico_id, roleLabel: 'Revisor Pedagógico' },
+      { userId: revisor_estilo_id, roleLabel: 'Revisor de Estilo' },
+    ].filter((a) => a.userId);
+    for (const a of explicitAssignments) {
+      await notifyAssignment({
+        admin,
+        userId: a.userId,
+        actorId: auth.profile.id,
+        roleLabel: a.roleLabel,
+        codigo: data.codigo,
+        link: `/documentos/${data.id}`,
+        sourceType: 'document',
+        sourceId: data.id,
+      });
+    }
+
     // Si se creó sin Creador Experto asignado, según la configuración del
     // proyecto se asigna solo o queda disponible para que alguien lo tome.
     const { data: project } = await admin
@@ -160,7 +181,7 @@ export default withCors(async (req, res) => {
       .select('asignacion_creador, asignacion_revisor_pedagogico, asignacion_revisor_estilo, criterio_carga')
       .eq('id', project_id)
       .single();
-    await autoAssignIfNeeded(admin, data, project);
+    await autoAssignIfNeeded(admin, data, project, auth.profile.id);
 
     // Si el Creador Experto (el elegido al crear, o el que se acaba de
     // auto-asignar arriba) es un agente sintético, se dispara la

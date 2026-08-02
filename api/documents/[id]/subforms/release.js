@@ -4,6 +4,7 @@ import { supabaseAdmin } from '../../../_lib/supabaseAdmin.js';
 import { getDb, toObjectId } from '../../../_lib/mongo.js';
 import { loadDocumentWithAccess } from '../../../_lib/documentAccess.js';
 import { autoAssignSubform } from '../../../_lib/multimediaAssignment.js';
+import { notifyAssignment } from '../../../_lib/notifications.js';
 
 // Libera una o varias instancias de subformulario (individual o en lote)
 // como tareas independientes para el equipo multimedia. Solo el Revisor
@@ -121,6 +122,16 @@ export default withCors(async (req, res) => {
       await db
         .collection('subform_assignments')
         .updateOne({ _id: insertResult.insertedId }, { $set: { assigned_user_id: assignedUserId } });
+      await notifyAssignment({
+        admin,
+        userId: assignedUserId,
+        actorId: auth.profile.id,
+        roleLabel: role.nombre,
+        codigo: assignment.subform_codigo || assignment.document_codigo,
+        link: `/multimedia/tarea/${insertResult.insertedId}`,
+        sourceType: 'subform_assignment',
+        sourceId: insertResult.insertedId.toString(),
+      });
     }
 
     released.push({ instance_id: instanceId, id: insertResult.insertedId.toString(), role: role.nombre });
