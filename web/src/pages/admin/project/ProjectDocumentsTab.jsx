@@ -199,9 +199,8 @@ export default function ProjectDocumentsTab({ projectId, readOnly }) {
           showAlert('No se pudo generar: ' + (job.error_message || 'error desconocido'), 'error');
         } else if (job.needs_human_review) {
           showAlert(
-            'El agente generó un borrador pero no logró pasar la validación tras varios intentos. ' +
-              'Se envió a Revisión Pedagógica para que se corrija allí.',
-            'revision'
+            'El agente generó un borrador del documento. Se envió a Revisión Pedagógica para que se corrija allí.',
+            'info'
           );
         } else {
           showAlert('Contenido generado y validado ✓. Se envió a Revisión Pedagógica.', 'exito');
