@@ -43,6 +43,8 @@ export default function ProjectDocumentsTab({ projectId, readOnly }) {
   const [documentTypeId, setDocumentTypeId] = useState('');
   const [poblacionObjetivoId, setPoblacionObjetivoId] = useState('');
   const [projectPoblaciones, setProjectPoblaciones] = useState([]);
+  const [idiomasProyecto, setIdiomasProyecto] = useState(['Español']);
+  const [idioma, setIdioma] = useState('');
   const [creadorId, setCreadorId] = useState('');
   const [revisorPedagogicoId, setRevisorPedagogicoId] = useState('');
   const [revisorEstiloId, setRevisorEstiloId] = useState('');
@@ -107,6 +109,8 @@ export default function ProjectDocumentsTab({ projectId, readOnly }) {
     setDocTypes(typesData.document_types);
     const allowedIds = parametrizacionData.parametrizacion?.poblacion_objetivo?.poblacion_ids || [];
     setProjectPoblaciones(poblacionesData.poblaciones_objetivo.filter((p) => allowedIds.includes(p.id)));
+    const idiomasConfigurados = parametrizacionData.parametrizacion?.poblacion_objetivo?.idiomas || [];
+    setIdiomasProyecto(idiomasConfigurados.includes('Español') ? idiomasConfigurados : ['Español', ...idiomasConfigurados]);
     setLoading(false);
   };
 
@@ -122,12 +126,14 @@ export default function ProjectDocumentsTab({ projectId, readOnly }) {
         form_id: formId,
         document_type_id: documentTypeId || null,
         poblacion_objetivo_id: poblacionObjetivoId,
+        idioma: idioma || null,
         creador_id: creadorId || null,
         revisor_pedagogico_id: revisorPedagogicoId || null,
         revisor_estilo_id: revisorEstiloId || null,
       });
       setCodigo('');
       setPoblacionObjetivoId('');
+      setIdioma('');
       setShowForm(false);
       load();
     } catch (err) {
@@ -389,6 +395,25 @@ export default function ProjectDocumentsTab({ projectId, readOnly }) {
               ))}
             </select>
           </div>
+
+          {idiomasProyecto.length > 1 && (
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 mb-1">Idioma</label>
+              <select
+                required
+                value={idioma}
+                onChange={(e) => setIdioma(e.target.value)}
+                className="w-full border border-deepViolet/20 rounded-lg p-2 text-sm"
+              >
+                <option value="">Seleccionar...</option>
+                {idiomasProyecto.map((i) => (
+                  <option key={i} value={i}>
+                    {i}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           <div>
             <label className="block text-xs font-semibold text-slate-500 mb-1">Creador Experto</label>
